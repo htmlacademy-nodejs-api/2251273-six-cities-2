@@ -1,7 +1,7 @@
 # Личный проект «Шесть городов»
 
 * Студент: [Виталий Еченко](https://up.htmlacademy.ru/nodejs-api-individual/2/user/2251273).
-* Наставник: `Неизвестно`.
+* Наставник: [Владислав Горшков](https://htmlacademy.ru/profile/id2682067).
 
 ---
 
