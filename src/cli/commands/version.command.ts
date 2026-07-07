@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-
 import { Command } from './command.interface.js';
+import chalk from 'chalk';
 
 type PackageJSONConfig = {
   version: string;
@@ -24,9 +24,7 @@ export class VersionCommand implements Command {
 
   private readVersion(): string {
     const absolutePath = resolve(this.filePath);
-
     const fileContent = readFileSync(absolutePath, 'utf-8');
-
     const importedContent: unknown = JSON.parse(fileContent);
 
     if (!isPackageJSONConfig(importedContent)) {
@@ -43,13 +41,32 @@ export class VersionCommand implements Command {
   execute(): void {
     try {
       const version = this.readVersion();
-      console.info(version);
+
+      console.info(
+        chalk.cyan('📦 Version:'),
+        chalk.bold.green(version),
+      );
+      console.info(
+        chalk.gray(`   from ${chalk.underline(this.filePath)}`),
+      );
     } catch (error: unknown) {
-      console.error(`Failed to read version from ${this.filePath}`);
+      console.error(
+        chalk.bgRed.white.bold(' ❌ ERROR '),
+        chalk.red('Failed to read version from'),
+        chalk.underline.yellow(this.filePath),
+      );
 
       if (error instanceof Error) {
-        console.error(error.message);
+        console.error(
+          chalk.red('   Details:'),
+          chalk.gray(error.message),
+        );
       }
+
+      console.error(
+        chalk.yellow('💡 Hint:'),
+        chalk.gray('Make sure you are running the command from the project root directory.'),
+      );
     }
   }
 }

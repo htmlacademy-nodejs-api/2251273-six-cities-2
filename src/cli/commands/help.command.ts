@@ -1,4 +1,5 @@
 import { Command } from './command.interface.js';
+import chalk from 'chalk';
 
 export class HelpCommand implements Command {
   public getName(): string {
@@ -11,26 +12,20 @@ export class HelpCommand implements Command {
 
   private getHelpText(): string {
     return `
-Программа для подготовки данных для REST API сервера.
+${chalk.bold('CLI-утилита для подготовки данных REST API сервера')}
 
-Использование:
-  cli.js <command> [arguments]
+${chalk.underline('Использование:')} cli.js ${chalk.cyan('<command>')} ${chalk.yellow('[arguments]')}
 
-Доступные команды:
-  --version                   Выводит номер версии из package.json
-  --help                      Показывает эту справку
-  --import <path>             Импортирует данные из TSV файла
-                              Пример: cli.js --import ./data/offers.tsv
-  --generate <count> <path> <url>  Генерирует тестовые данные
-                              count  - количество записей (1-1000)
-                              path   - путь для сохранения файла
-                              url    - URL для загрузки изображений
-                              Пример: cli.js --generate 100 ./data/offers.tsv http://localhost:3000/static/images
+${chalk.underline('Команды:')}
+  ${chalk.cyan('--version')}------------------------ ${chalk.magenta('вывод номера версии')}
+  ${chalk.cyan('--help')}--------------------------- ${chalk.magenta('вывод эта справка')}
+  ${chalk.cyan('--import')} ${chalk.yellow('<path>')}------------------ ${chalk.magenta('импорт из TSV')}
+  ${chalk.cyan('--generate')} ${chalk.yellow('<n> <path> <url>')}------ ${chalk.magenta('генерация тестовых данных')}
 
-Примеры:
-  cli.js --version
-  cli.js --import ./data/offers.tsv
-  cli.js --generate 50 ./data/test.tsv http://example.com/images
+${chalk.underline('Примеры:')}
+  ${chalk.green('cli.js --version')}
+  ${chalk.green('cli.js --import ./data/offers.tsv')}
+  ${chalk.green('cli.js --generate 50 ./data/test.tsv http://example.com/images')}
 `.trim();
   }
 }
