@@ -7,7 +7,7 @@ export class TSVFileReader implements FileReader {
 
   constructor(
     private readonly filename: string
-  ) {}
+  ) { }
 
   public read(): void {
     this.rawData = readFileSync(this.filename, { encoding: 'utf-8' });
@@ -22,23 +22,37 @@ export class TSVFileReader implements FileReader {
       .split('\n')
       .filter((row) => row.trim().length > 0)
       .map((line) => line.split('\t'))
-      .map(([id, title, type, price, city, isFavorite, isPremium, rating, previewImage]) => ({
+      .map(([id,
+        title,
+        type,
+        price,
+        previewImage,
+        cityName,
+        cityLocationLatitude,
+        cityLocationLongitude,
+        cityLocationZoom,
+        offerLocationLatitude,
+        offerLocationLongitude,
+        offerLocationZoom,
+        isFavorite,
+        isPremium,
+        rating,]) => ({
         id,
         title,
         type,
         price: Number(price),
         city: {
-          name: city,
-          location : {
-            latitude: 0,
-            longitude: 0,
-            zoom: 0,
+          name: cityName,
+          location: {
+            latitude: Number(cityLocationLatitude),
+            longitude: Number(cityLocationLongitude),
+            zoom: Number(cityLocationZoom),
           }
         },
         location: {
-          latitude: 0,
-          longitude: 0,
-          zoom: 0,
+          latitude: Number(offerLocationLatitude),
+          longitude: Number(offerLocationLongitude),
+          zoom: Number(offerLocationZoom),
         },
         isFavorite: isFavorite === 'true',
         isPremium: isPremium === 'true',
