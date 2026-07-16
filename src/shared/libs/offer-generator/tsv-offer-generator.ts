@@ -8,6 +8,7 @@ import { TSVFormatter } from '../tsv-formatter/tsv-formatter.js';
 export class TSVOfferGenerator implements OfferGenerator {
   constructor(private readonly mockData: MockServerDataType) { }
 
+  // Генерируем оффер
   generate(): string {
     const { titles, types, cites, locations, previewImages } = this.mockData;
 
