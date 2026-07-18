@@ -1,37 +1,40 @@
-import { FileReader } from './file-reader.interface.js';
-import { readFileSync } from 'node:fs';
-import { Offer, OfferType } from '../../types/index.type.js';
+import * as fs from 'node:fs';
+import * as readline from 'node:readline';
+import { TSVParser } from './../tsv-parser/index.js';
+import { OffersItemType } from '../../types/index.type.js';
 
-export class TSVFileReader implements FileReader {
-  private rawData = '';
-
+export class TSVFileReader {
+  // Получаем файл (путь к нему) и парсер
   constructor(
-    private readonly filename: string
+    private readonly filename: string,
+    private readonly parser: TSVParser
   ) {}
 
-  public read(): void {
-    this.rawData = readFileSync(this.filename, { encoding: 'utf-8' });
-  }
+  // Читаем файл
+  public async read(): Promise<OffersItemType[]> {
+    // Создаем интерфейс для чтения
+    const rl = readline.createInterface({
+      input: fs.createReadStream(this.filename, { encoding: 'utf8' }),
+      crlfDelay: Infinity,
+    });
 
-  public toArray(): Offer[] {
-    if (!this.rawData) {
-      throw new Error('File was not read');
+    // Создаем пустой массив
+    const results: OffersItemType[] = [];
+    let isFirstLine = true;
+
+    // Проходимся по каждой строке
+    for await (const line of rl) {
+      console.log(line);
+      if (isFirstLine) {
+        isFirstLine = false;
+        continue;
+      }
+      if (line.trim()) {
+        // Парсим строку
+        results.push(this.parser.parse(line));
+      }
     }
 
-    return this.rawData
-      .split('\n')
-      .filter((row) => row.trim().length > 0)
-      .map((line) => line.split('\t'))
-      .map(([title, description, createdDate, image, type, price, categories, firstName, lastName, email, avatarPath]) => ({
-        title,
-        description,
-        postDate: new Date(createdDate),
-        image,
-        type: OfferType[type as 'Buy' | 'Sell'],
-        categories: categories.split(';')
-          .map((name) => ({name})),
-        price: Number.parseInt(price, 10),
-        user: { email, firstName, lastName, avatarPath },
-      }));
+    return results;
   }
 }

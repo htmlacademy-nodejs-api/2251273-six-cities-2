@@ -15,7 +15,8 @@
     "compile": "tsc -p tsconfig.json",
     "clean": "rimraf dist",
     "ts": "tsx",
-    "cli": "node ./dist/main.cli.js"
+    "cli": "node ./dist/main.cli.js",
+    "server:dev": "json-server ./mocks/mock-server-data.json --port 4000 --watch"
   },
   "devDependencies": {
     "@types/node": "^18.19.130",
@@ -23,6 +24,7 @@
     "@typescript-eslint/parser": "6.7.0",
     "eslint": "8.49.0",
     "eslint-config-htmlacademy": "9.1.1",
+    "json-server": "1.0.0-beta.15",
     "rimraf": "5.0.1",
     "ts-node": "10.9.1",
     "tsx": "4.23.0",
@@ -34,6 +36,9 @@
     "npm": ">=8"
   },
   "dependencies": {
-    "chalk": "5.6.2"
+    "chalk": "5.6.2",
+    "got": "15.1.0",
+    "tslib": "^2.8.1",
+    "uuid": "14.0.1"
   }
 }

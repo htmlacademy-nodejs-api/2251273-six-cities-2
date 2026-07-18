@@ -1,0 +1,69 @@
+{
+  "api": {
+    "titles": [
+      "Cozy studio near canal in Amsterdam",
+      "Spacious family house in Hamburg",
+      "Modern room close to museums in Paris",
+      "Quiet apartment near old town in Cologne",
+      "Central hotel studio in Brussels",
+      "Sunny apartment in Dusseldorf center",
+      "Stylish loft with river view",
+      "Comfortable apartment near central station"
+    ],
+    "types": [
+      "apartment",
+      "house",
+      "room",
+      "hotel"
+    ],
+    "cites": [
+      "Paris",
+      "Cologne",
+      "Brussels",
+      "Amsterdam",
+      "Hamburg",
+      "Dusseldorf"
+    ],
+    "locations": {
+      "Paris": {
+        "latitude": 48.85661,
+        "longitude": 2.351499,
+        "zoom": 13
+      },
+      "Cologne": {
+        "latitude": 50.938361,
+        "longitude": 6.959974,
+        "zoom": 13
+      },
+      "Brussels": {
+        "latitude": 50.846557,
+        "longitude": 4.351697,
+        "zoom": 13
+
+      },
+      "Amsterdam": {
+        "latitude": 52.370216,
+        "longitude": 4.895168,
+        "zoom": 13
+      },
+      "Hamburg": {
+        "latitude": 53.550341,
+        "longitude": 10.000654,
+        "zoom": 13
+      },
+      "Dusseldorf": {
+        "latitude": 51.225402,
+        "longitude": 6.776314,
+        "zoom": 13
+      }
+    },
+    "previewImages": [
+      "preview-1.jpg",
+      "preview-2.jpg",
+      "preview-3.jpg",
+      "preview-4.jpg",
+      "preview-5.jpg",
+      "preview-6.jpg"
+    ]
+  }
+}
