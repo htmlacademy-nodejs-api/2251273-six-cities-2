@@ -11,5 +11,6 @@
 coverage
 *.log
 logs/*
+*.env
 
 !logs/.gitkeep
