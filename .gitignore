@@ -10,3 +10,6 @@
 .DS_Store
 coverage
 *.log
+logs/*
+
+!logs/.gitkeep

@@ -1,6 +1,7 @@
 import { createWriteStream, WriteStream } from 'node:fs';
 import { finished } from 'node:stream/promises';
 import { FileWriter } from './file-writer.interface.js';
+import { logger } from '../../libs/logger/logger.index.js';
 
 export class TSVFileWriter implements FileWriter {
   // Создаем экземпляр класса WriteStream
@@ -13,15 +14,18 @@ export class TSVFileWriter implements FileWriter {
 
   // Записываем строку
   public async write(row: string): Promise<void> {
+    logger.debug(`Writing row: ${row}`);
     // Записываем строку в стрим
     if (!this.stream.write(`${row}\n`)) {
       // Ждем пока стрим освободится
+      logger.debug('Waiting for stream to drain...');
       await new Promise<void>((resolve) => this.stream.once('drain', resolve));
     }
   }
 
   // Закрываем файл
   public async close(): Promise<void> {
+    logger.debug('Closing file...');
     this.stream.end();
     await finished(this.stream);
   }

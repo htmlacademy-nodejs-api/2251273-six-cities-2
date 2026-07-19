@@ -1,8 +1,8 @@
 import { Command } from './command.interface.js';
 import { TSVOfferGenerator } from '../../shared/libs/offer-generator/index.js';
 import { TSVFileWriter } from '../../shared/libs/file-writer/index.js';
+import { logger } from './../../shared/libs/logger/logger.index.js';
 import got from 'got';
-import chalk from 'chalk';
 import { TSV_FIELDS_OFFER } from '../../shared/const.js';
 
 export class GenerateCommand implements Command {
@@ -19,10 +19,12 @@ export class GenerateCommand implements Command {
 
     // Проверяем наличие аргументов
     if (!count || !filePath || !url) {
-      return console.error(chalk.red('❌ Usage: --generate <count> <filepath> <url>'));
+      logger.error('Missing required arguments');
+      logger.error('Usage: --generate <count> <filepath> <url>');
     }
 
     try {
+      logger.info(`Downloading data from ${url}...`);
       // Получаем данные из url
       const mockData = JSON.parse((await got(url)).body);
       // Создаем экземпляр класса TSVFileWriter для записи в файл
@@ -31,6 +33,7 @@ export class GenerateCommand implements Command {
       await writer.write(TSV_FIELDS_OFFER.join('\t'));
       // Создаем экземпляр класса TSVOfferGenerator для генерации данных
       const generator = new TSVOfferGenerator(mockData);
+      logger.info(`Generating ${count} offers...`);
       for (let i = 0; i < count; i++) {
         // Записываем сгенерированные данные
         await writer.write(generator.generate());
@@ -38,11 +41,10 @@ export class GenerateCommand implements Command {
 
       // Закрываем файл
       await writer.close();
-      console.info(chalk.green(`✅ Generated ${count} offers to ${filePath}`));
-
+      logger.info(`Generated ${count} offers to ${filePath}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(chalk.red(`❌ ERROR: ${msg}`));
+      logger.error({ err }, `ERROR: ${msg}`);
     }
   }
 }
