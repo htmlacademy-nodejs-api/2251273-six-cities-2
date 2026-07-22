@@ -1,4 +1,3 @@
-// global
 function generateRandomValue(min: number, max: number, numAfterDigit: number = 0): number {
   return Number((Math.random() * (max - min) + min).toFixed(numAfterDigit));
 }

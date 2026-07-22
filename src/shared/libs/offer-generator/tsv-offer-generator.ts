@@ -51,7 +51,6 @@ export class TSVOfferGenerator implements OfferGenerator {
       rating,
     };
     const offerFormatter = new TSVFormatter().format(offer);
-
     return offerFormatter;
   }
 }
