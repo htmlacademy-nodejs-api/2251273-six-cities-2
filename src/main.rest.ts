@@ -1,23 +1,18 @@
-import { PinoLogger } from './shared/libs/logger/pino.logger.js';
-import { RestConfig } from './shared/libs/config/config.index.js';
+import 'reflect-metadata';
 import { RestApplication } from './rest/rest.application.js';
-
+import { container, TYPES } from './shared/libs/container/container.index.js';
+import { LoggerInterface } from './shared/libs/logger/logger.index.js';
 async function bootstrap() {
-  const logger = new PinoLogger();
-
   try {
-    // 1. Создаем конфиг (загрузит .env и провалидирует convict)
-    const config = new RestConfig(logger);
-
-    // 2. Создаем приложение, передавая зависимости
-    const application = new RestApplication(logger, config);
-
-
-    // 3. Запускаем
+    const application = container.get<RestApplication>(TYPES.Application);
     await application.init();
   } catch (error) {
-    logger.error('Fatal error during bootstrap:', error as Error);
-
+    try {
+      const logger = container.get<LoggerInterface>(TYPES.Logger);
+      logger.error(error as Error, '💥 Fatal error during bootstrap');
+    } catch {
+      console.error('💥 Fatal error during bootstrap:', error);
+    }
     throw error;
   }
 }

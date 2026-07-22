@@ -1,11 +1,16 @@
 import * as dotenv from 'dotenv';
 import { configRestSchema, RestSchema } from './config.index.js';
 import { LoggerInterface } from './../logger/logger.index.js';
+import { injectable, inject } from 'inversify';
+import { TYPES } from './../container/container.index.js';
 
+@injectable()
 export class RestConfig {
   private readonly config: RestSchema;
 
-  constructor(private readonly logger: LoggerInterface) {
+  constructor(
+    @inject(TYPES.Logger) private readonly logger: LoggerInterface
+  ) {
     const parsedOutput = dotenv.config();
 
     if (parsedOutput.error) {
@@ -23,8 +28,6 @@ export class RestConfig {
     }
 
     this.config = configRestSchema.getProperties();
-
-    // ✅ Вызываем метод для вывода значений в консоль
     this.logConfig();
   }
 
@@ -34,12 +37,8 @@ export class RestConfig {
 
   private logConfig(): void {
     this.logger.info('Loaded environment variables:');
-
-    // Проходимся по всем ключам и значениям объекта config
     const entries = Object.entries(this.config) as [keyof RestSchema, RestSchema[keyof RestSchema]][];
-
     for (const [key, value] of entries) {
-      // Выводим в формате "ключ: значение"
       this.logger.info(`   - ${key}: ${String(value)}`);
     }
   }

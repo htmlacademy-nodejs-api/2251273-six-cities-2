@@ -1,10 +1,8 @@
 import convict from 'convict';
 import convictFormatWithValidator from 'convict-format-with-validator';
 
-// Регистрируем встроенные валидаторы
 convict.addFormats(convictFormatWithValidator);
 
-// 1. Явно описываем тип схемы для TypeScript
 export type RestSchema = {
   port: number;
   logLevel: string;

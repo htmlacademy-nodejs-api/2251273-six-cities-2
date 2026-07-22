@@ -2,10 +2,12 @@ import pino, { Logger as PinoInstance } from 'pino';
 import { resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { LoggerInterface } from './logger.interface.js';
+import { injectable } from 'inversify';
 
 const logDir = resolve(process.cwd(), './logs');
 mkdirSync(logDir, { recursive: true });
 
+@injectable()
 export class PinoLogger implements LoggerInterface {
   private readonly logger: PinoInstance;
 
