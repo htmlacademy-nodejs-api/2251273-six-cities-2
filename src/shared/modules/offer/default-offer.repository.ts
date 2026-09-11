@@ -50,9 +50,17 @@ export class DefaultOfferRepository implements OfferRepository {
     return result.deletedCount > 0;
   }
 
-  public async updateStats(offerId: string, rating: number, commentsCount: number): Promise<DocumentOffer | null> {
+  public async updateStats(
+    offerId: string,
+    rating: number,
+    commentsCount: number,
+  ): Promise<DocumentOffer | null> {
     this.logger.debug(`DefaultOfferRepository: Updating stats for offer ${offerId}`);
-    return OfferModel.findOneAndUpdate({ id: offerId }, { rating, commentsCount }, { returnDocument: 'after' },).populate('user').exec();
+    return OfferModel.findOneAndUpdate(
+      { id: offerId },
+      { rating, commentsCount },
+      { returnDocument: 'after' },
+    ).populate('user').exec();
   }
 
   public async existsById(id: string): Promise<boolean> {

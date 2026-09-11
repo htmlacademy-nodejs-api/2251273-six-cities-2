@@ -52,7 +52,6 @@ export class RestApplication {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
-    // ✅ ДОБАВЛЕНО: Раздача статических файлов
     const uploadDir = this.config.get('uploadDirectory');
     this.app.use('/upload', express.static(uploadDir));
 
@@ -65,11 +64,8 @@ export class RestApplication {
 
   private initRoutes(): void {
     this.app.use('/auth', this.authController.getRouter());
-
     this.app.use('/users', this.userController.getRouter());
-
     this.app.use(this.offerController.getRouter());
-
     this.app.use('/offers', this.commentController.getRouter());
 
     this.app.use((_req, res) => {

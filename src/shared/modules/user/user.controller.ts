@@ -7,7 +7,9 @@ import { TYPES } from '../../libs/container/container.types.js';
 import { LoggerInterface } from '../../libs/logger/logger.interface.js';
 import { ValidateObjectIdMiddleware } from '../../libs/middleware/validate-objectid.middleware.js';
 import { ValidateDtoMiddleware } from '../../libs/middleware/validate-dto.middleware.js';
+import { DocumentExistsMiddleware } from '../../libs/middleware/document-exists.middleware.js';
 import { UserService } from './user.service.js';
+import { UserRepository } from './user.repository.interface.js';
 import { createUserSchema } from './user.dto.js';
 import { RestConfig } from '../../libs/config/index.js';
 import { FileMiddleware } from '../../libs/middleware/file.middleware.js';
@@ -20,13 +22,13 @@ export class UserController extends BaseController {
     @inject(TYPES.Logger) protected override readonly logger: LoggerInterface,
     @inject(TYPES.UserService) private readonly userService: UserService,
     @inject(TYPES.Config) private readonly config: RestConfig,
+    @inject(TYPES.UserRepository) private readonly userRepository: UserRepository,
   ) {
     super(logger);
     this.initRoutes();
   }
 
   private initRoutes(): void {
-    // POST /users — регистрация пользователя
     this.addRoute(
       HttpMethod.Post,
       '/',
@@ -34,29 +36,28 @@ export class UserController extends BaseController {
       [new ValidateDtoMiddleware(createUserSchema)]
     );
 
-    // GET /users/:userId — получение пользователя по ID
     this.addRoute(
       HttpMethod.Get,
       '/:userId',
       this.show,
-      [new ValidateObjectIdMiddleware('userId')]
+      [
+        new ValidateObjectIdMiddleware('userId'),
+        new DocumentExistsMiddleware(this.userRepository, 'userId', 'User'), // ✅ DB check
+      ]
     );
 
-    // POST /users/:userId/avatar — загрузка аватара
     this.addRoute(
       HttpMethod.Post,
       '/:userId/avatar',
       this.uploadAvatar,
       [
         new ValidateObjectIdMiddleware('userId'),
+        new DocumentExistsMiddleware(this.userRepository, 'userId', 'User'), // ✅ DB check
         new FileMiddleware(this.config.get('uploadDirectory'), 'avatar', 1024 * 1024),
       ]
     );
   }
 
-  /**
-   * Регистрация нового пользователя.
-   */
   private create = async (req: Request, res: Response): Promise<void> => {
     try {
       const dto = req.body;
@@ -79,37 +80,18 @@ export class UserController extends BaseController {
     }
   };
 
-  /**
-   * Получение пользователя по ID.
-   */
   private show = async (req: Request<ParamUserId>, res: Response): Promise<void> => {
-    try {
-      const { userId } = req.params;
-      const user = await this.userService.findById(userId.trim());
-      if (!user) {
-        this.notFound(res, `User with id ${userId} not found`);
-        return;
-      }
-      this.ok(res, user);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`UserController: Unexpected error: ${errorMessage}`);
-      this.internalServerError(res, 'Failed to get user');
-    }
+    const { userId } = req.params;
+    const user = await this.userService.findById(userId.trim());
+    this.ok(res, user);
   };
 
-  /**
-   * Загрузка аватара пользователя.
-   */
   private uploadAvatar = async (req: Request<ParamUserId>, res: Response): Promise<void> => {
-    // Приведение типа нужно, чтобы TypeScript знал о существовании req.file от multer
     const reqWithFile = req as Request & { file?: Express.Multer.File };
-
     if (!reqWithFile.file) {
       this.badRequest(res, 'No file uploaded');
       return;
     }
-
     try {
       const { userId } = req.params;
       const avatarUrl = `/upload/${reqWithFile.file.filename}`;

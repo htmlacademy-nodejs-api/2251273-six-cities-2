@@ -10,11 +10,10 @@ const SALT_ROUNDS = 10;
 
 @injectable()
 export class UserService {
-
   constructor(
     @inject(TYPES.Logger) private readonly logger: LoggerInterface,
     @inject(TYPES.UserRepository) private readonly userRepository: UserRepository,
-  ) { }
+  ) {}
 
   public async create(dto: CreateUserInput): Promise<PublicUser> {
     this.logger.info('UserService: Creating new user');
