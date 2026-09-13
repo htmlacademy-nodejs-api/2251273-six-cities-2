@@ -51,4 +51,9 @@ export class UserService {
     const user = await this.userRepository.updateById(userId, { avatarUrl });
     return user ? this.toPublicUser(user) : null;
   }
+
+  public async getFavoriteOfferIds(userId: string): Promise<string[]> {
+    const user = await this.userRepository.findById(userId);
+    return user?.favorites || [];
+  }
 }

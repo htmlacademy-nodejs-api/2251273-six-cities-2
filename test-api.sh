@@ -3,19 +3,16 @@
 # 🧪 Автоматическое тестирование REST API «Шесть городов»
 # Полностью соответствует specification.yml + тест загрузки аватара
 # ============================================================================
-
 BASE_URL="${API_URL:-http://localhost:3000}"
 TEST_EMAIL="auto-test-$(date +%s)@example.com"
 TEST_PASSWORD="securePassword123"
 TEST_NAME="Auto Tester"
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
-
 PASSED=0
 FAILED=0
 TOTAL=0
@@ -24,8 +21,6 @@ TOTAL=0
 extract_value() {
   local json="$1"
   local key="$2"
-  # awk находит ПЕРВОЕ вхождение ключа и сразу завершает работу (exit).
-  # Это обходит баг head -1 в Git Bash и гарантирует извлечение корневого id.
   echo "$json" | tr -d '\r\n' | awk -v key="\"$key\":" '
   {
     idx = index($0, key)
@@ -48,10 +43,8 @@ check_status() {
   local response="$1"
   local expected="$2"
   local test_name="$3"
-
   TOTAL=$((TOTAL + 1))
   local actual=$(echo "$response" | tail -n1)
-
   if [ "$actual" == "$expected" ]; then
     echo -e "${GREEN}✅ PASS${NC} [$actual] $test_name"
     PASSED=$((PASSED + 1))
@@ -114,25 +107,21 @@ check_status "$RESPONSE" "200" "POST /auth/login — успешный вход"
 TOKEN=$(extract_value "$RESPONSE" "token")
 echo -e "   └─ Token: ${YELLOW}${TOKEN:0:40}...${NC}"
 
-# ✅ НОВЫЙ ТЕСТ: Загрузка аватара
+# ✅ ИСПРАВЛЕННЫЙ ТЕСТ: Загрузка аватара (убран $USER_ID из URL)
 echo -e "${BLUE}📋 ТЕСТ 6.1: Загрузка аватара пользователя${NC}"
-# Создаем минимальный валидный PNG файл (1x1 пиксель) во временной директории
 TEST_AVATAR=$(mktemp /tmp/avatar-XXXXXX.png)
 printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > "$TEST_AVATAR"
 
-RESPONSE_AVATAR=$(do_request -X POST "$BASE_URL/users/$USER_ID/avatar" \
+RESPONSE_AVATAR=$(do_request -X POST "$BASE_URL/users/avatar" \
   -H "Authorization: Bearer $TOKEN" \
   -F "avatar=@$TEST_AVATAR")
-check_status "$RESPONSE_AVATAR" "200" "POST /users/:userId/avatar — загрузка аватара"
-
+check_status "$RESPONSE_AVATAR" "200" "POST /users/avatar — загрузка аватара"
 AVATAR_URL=$(extract_value "$RESPONSE_AVATAR" "avatarUrl")
 if [ -n "$AVATAR_URL" ]; then
   echo -e "   └─ Avatar URL: ${YELLOW}$AVATAR_URL${NC}"
 else
   echo -e "${RED}   └─ Avatar URL не найден в ответе${NC}"
 fi
-
-# Очищаем временный файл
 rm -f "$TEST_AVATAR"
 
 echo -e "${BLUE}📋 ТЕСТ 7: Вход с неверным паролем${NC}"
@@ -147,24 +136,24 @@ RESPONSE=$(do_request -X POST "$BASE_URL/offers" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "title": "Cozy apartment in Paris center",
-    "type": "apartment",
-    "price": 2500,
-    "previewImage": "http://example.com/img.jpg",
-    "cityName": "Paris",
-    "cityLatitude": 48.8566,
-    "cityLongitude": 2.3522,
-    "cityZoom": 12,
-    "offerLatitude": 48.8566,
-    "offerLongitude": 2.3522,
-    "offerZoom": 16,
-    "rating": 4.5,
-    "description": "A beautiful place to stay in the heart of the city.",
-    "bedrooms": 2,
-    "offerGoods": ["Wi-Fi", "Kitchen"],
-    "images": ["http://example.com/img1.jpg"],
-    "maxAdults": 4
-  }')
+  "title": "Cozy apartment in Paris center",
+  "type": "apartment",
+  "price": 2500,
+  "previewImage": "http://example.com/img.jpg",
+  "cityName": "Paris",
+  "cityLatitude": 48.8566,
+  "cityLongitude": 2.3522,
+  "cityZoom": 12,
+  "offerLatitude": 48.8566,
+  "offerLongitude": 2.3522,
+  "offerZoom": 16,
+  "rating": 4.5,
+  "description": "A beautiful place to stay in the heart of the city.",
+  "bedrooms": 2,
+  "offerGoods": ["Wi-Fi", "Kitchen"],
+  "images": ["http://example.com/img1.jpg"],
+  "maxAdults": 4
+}')
 check_status "$RESPONSE" "201" "POST /offers — создание оффера"
 OFFER_ID=$(extract_value "$RESPONSE" "id")
 echo -e "   └─ Offer ID: ${YELLOW}$OFFER_ID${NC}"
@@ -253,7 +242,6 @@ echo -e "${CYAN}║${NC}  Пройдено:      ${GREEN}$PASSED${NC}           
 echo -e "${CYAN}║${NC}  Провалено:     ${RED}$FAILED${NC}                                       ${CYAN}║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
-
 if [ $FAILED -eq 0 ]; then
   echo -e "${GREEN}🎉 Все тесты пройдены! API работает корректно.${NC}"
   exit 0

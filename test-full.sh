@@ -2,11 +2,9 @@
 # ============================================================================
 # 🧪 ПОЛНАЯ ПРОВЕРКА REST API «Шесть городов» (Финальная версия + Загрузка файлов)
 # ============================================================================
-
 BASE_URL="${API_URL:-http://localhost:3000}"
 TEST_EMAIL="ivan-$(date +%s)@test.com"
 TEST_PASSWORD="pass12345"
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -17,10 +15,7 @@ NC='\033[0m'
 # --- НАДЕЖНАЯ ФУНКЦИЯ ИЗВЛЕЧЕНИЯ ID (через awk) ---
 extract_id() {
   local json="$1"
-  # tr -d '\n\r' превращает многострочный JSON в одну строку.
-  # awk находит ПЕРВОЕ вхождение ключа и сразу завершает работу (exit).
-  # Это гарантирует, что мы возьмем корневой id, а не вложенный user.id
-  echo "$json" | tr -d '\n\r' | awk -v key='"id":' '
+  echo "$json" | tr -d '\r\n' | awk -v key='"id":' '
   {
     idx = index($0, key)
     if (idx > 0) {
@@ -42,10 +37,8 @@ check() {
   local response="$1"
   local expected="$2"
   local description="$3"
-
   local actual=$(echo "$response" | tail -n1)
   local body=$(echo "$response" | sed '$d')
-
   if [ "$actual" == "$expected" ]; then
     echo -e "${GREEN}✅ PASS${NC} [$actual] $description"
   else
@@ -68,7 +61,6 @@ echo ""
 # 1. ПОЛЬЗОВАТЕЛИ (Users)
 # =========================================================================
 echo -e "${BLUE}📌 1. ПОЛЬЗОВАТЕЛИ${NC}"
-
 RESP=$(do_req -X POST "$BASE_URL/users" -H "Content-Type: application/json" \
   -d "{\"name\":\"Ivan\",\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 check "$RESP" "201" "POST /users — Регистрация"
@@ -96,32 +88,27 @@ check "$RESP" "400" "GET /users/:userId — Невалидный формат ID
 # 2. АУТЕНТИФИКАЦИЯ (Auth)
 # =========================================================================
 echo -e "\n${BLUE}📌 2. АУТЕНТИФИКАЦИЯ${NC}"
-
 RESP=$(do_req -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" \
   -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 check "$RESP" "200" "POST /auth/login — Успешный вход"
 TOKEN=$(echo "$RESP" | sed '$d' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 echo -e "   └─ Сохранен TOKEN: ${YELLOW}${TOKEN:0:30}...${NC}"
 
-# ✅ НОВЫЙ ТЕСТ: Загрузка аватара
+# ✅ ИСПРАВЛЕННЫЙ ТЕСТ: Загрузка аватара (убран $USER_ID из URL)
 echo -e "${BLUE}📋 ТЕСТ 6.1: Загрузка аватара пользователя${NC}"
-# Создаем минимальный валидный PNG файл (1x1 пиксель) во временной директории
 TEST_AVATAR=$(mktemp /tmp/avatar-XXXXXX.png)
 printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > "$TEST_AVATAR"
 
-RESP_AVATAR=$(do_req -X POST "$BASE_URL/users/$USER_ID/avatar" \
+RESP_AVATAR=$(do_req -X POST "$BASE_URL/users/avatar" \
   -H "Authorization: Bearer $TOKEN" \
   -F "avatar=@$TEST_AVATAR")
-check "$RESP_AVATAR" "200" "POST /users/:userId/avatar — Загрузка аватара"
-
+check "$RESP_AVATAR" "200" "POST /users/avatar — Загрузка аватара"
 AVATAR_URL=$(echo "$RESP_AVATAR" | sed '$d' | grep -o '"avatarUrl":"[^"]*"' | cut -d'"' -f4)
 if [ -n "$AVATAR_URL" ]; then
   echo -e "   └─ Avatar URL: ${YELLOW}$AVATAR_URL${NC}"
 else
   echo -e "${RED}   └─ Avatar URL не найден в ответе${NC}"
 fi
-
-# Очищаем временный файл
 rm -f "$TEST_AVATAR"
 
 RESP=$(do_req -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" \
@@ -132,7 +119,6 @@ check "$RESP" "401" "POST /auth/login — Неверный пароль"
 # 3. ПРЕДЛОЖЕНИЯ (Offers)
 # =========================================================================
 echo -e "\n${BLUE}📌 3. ПРЕДЛОЖЕНИЯ${NC}"
-
 OFFER_PAYLOAD='{
   "title":"Paris apartment",
   "type":"apartment",
@@ -178,7 +164,6 @@ check "$RESP" "200" "GET /users/:userId/offers — Офферы пользова
 # 4. КОММЕНТАРИИ (Comments)
 # =========================================================================
 echo -e "\n${BLUE}📌 4. КОММЕНТАРИИ${NC}"
-
 RESP=$(do_req -X POST "$BASE_URL/offers/$OFFER_ID/comments" \
   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
   -d '{"text":"Great place! Highly recommend.","rating":5}')
@@ -209,7 +194,6 @@ check "$RESP" "404" "DELETE /offers/:offerId/comments/:commentId — Комме�
 # 5. ОЧИСТКА И ЗАВЕРШЕНИЕ
 # =========================================================================
 echo -e "\n${BLUE}📌 5. ОЧИСТКА И ЗАВЕРШЕНИЕ${NC}"
-
 RESP=$(do_req -X DELETE "$BASE_URL/offers/$OFFER_ID" -H "Authorization: Bearer $TOKEN")
 check "$RESP" "204" "DELETE /offers/:offerId — Удаление оффера"
 

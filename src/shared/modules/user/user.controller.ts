@@ -13,6 +13,7 @@ import { UserRepository } from './user.repository.interface.js';
 import { createUserSchema } from './user.dto.js';
 import { RestConfig } from '../../libs/config/index.js';
 import { FileMiddleware } from '../../libs/middleware/file.middleware.js';
+import { AuthMiddleware } from '../auth/auth.middleware.js';
 
 type ParamUserId = { userId: string };
 
@@ -23,6 +24,7 @@ export class UserController extends BaseController {
     @inject(TYPES.UserService) private readonly userService: UserService,
     @inject(TYPES.Config) private readonly config: RestConfig,
     @inject(TYPES.UserRepository) private readonly userRepository: UserRepository,
+    @inject(TYPES.AuthMiddleware) private readonly authMiddleware: AuthMiddleware,
   ) {
     super(logger);
     this.initRoutes();
@@ -42,17 +44,16 @@ export class UserController extends BaseController {
       this.show,
       [
         new ValidateObjectIdMiddleware('userId'),
-        new DocumentExistsMiddleware(this.userRepository, 'userId', 'User'), // ✅ DB check
+        new DocumentExistsMiddleware(this.userRepository, 'userId', 'User'),
       ]
     );
 
     this.addRoute(
       HttpMethod.Post,
-      '/:userId/avatar',
+      '/avatar',
       this.uploadAvatar,
       [
-        new ValidateObjectIdMiddleware('userId'),
-        new DocumentExistsMiddleware(this.userRepository, 'userId', 'User'), // ✅ DB check
+        this.authMiddleware,
         new FileMiddleware(this.config.get('uploadDirectory'), 'avatar', 1024 * 1024),
       ]
     );
@@ -86,14 +87,19 @@ export class UserController extends BaseController {
     this.ok(res, user);
   };
 
-  private uploadAvatar = async (req: Request<ParamUserId>, res: Response): Promise<void> => {
+  private uploadAvatar = async (req: Request, res: Response): Promise<void> => {
     const reqWithFile = req as Request & { file?: Express.Multer.File };
     if (!reqWithFile.file) {
       this.badRequest(res, 'No file uploaded');
       return;
     }
     try {
-      const { userId } = req.params;
+      const userId = req.tokenUserId;
+      if (!userId) {
+        this.unauthorized(res, 'User is not authenticated');
+        return;
+      }
+
       const avatarUrl = `/upload/${reqWithFile.file.filename}`;
       const updatedUser = await this.userService.updateAvatar(userId, avatarUrl);
       this.ok(res, updatedUser);

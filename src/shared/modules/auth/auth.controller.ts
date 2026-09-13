@@ -8,12 +8,15 @@ import { LoggerInterface } from '../../libs/logger/logger.interface.js';
 import { ValidateDtoMiddleware } from '../../libs/middleware/validate-dto.middleware.js';
 import { AuthService, AuthError } from './auth.service.js';
 import { loginSchema } from './auth.dto.js';
+import { extractBearerToken } from '../../helpers/auth.helpers.js';
+import { AuthMiddleware } from './auth.middleware.js';
 
 @injectable()
 export class AuthController extends BaseController {
   constructor(
     @inject(TYPES.Logger) protected override readonly logger: LoggerInterface,
     @inject(TYPES.AuthService) private readonly authService: AuthService,
+    @inject(TYPES.AuthMiddleware) private readonly authMiddleware: AuthMiddleware,
   ) {
     super(logger);
     this.initRoutes();
@@ -29,7 +32,7 @@ export class AuthController extends BaseController {
     );
 
     // POST /auth/logout — выход из системы
-    this.addRoute(HttpMethod.Post, '/logout', this.logout);
+    this.addRoute(HttpMethod.Post, '/logout', this.logout, [this.authMiddleware]);
   }
 
   /**
@@ -63,8 +66,20 @@ export class AuthController extends BaseController {
   /**
    * Выход из системы.
    */
-  private logout = async (_req: Request, res: Response): Promise<void> => {
+  private logout = async (req: Request, res: Response): Promise<void> => {
     try {
+      const token = extractBearerToken(req);
+      if (!token) {
+        this.unauthorized(res, 'Authorization token is required');
+        return;
+      }
+
+      const revoked = await this.authService.revoke(token);
+      if (!revoked) {
+        this.unauthorized(res, 'Invalid or already revoked token');
+        return;
+      }
+
       this.ok(res, { message: 'Logged out successfully' });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

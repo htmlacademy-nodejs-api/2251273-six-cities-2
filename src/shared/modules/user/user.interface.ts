@@ -9,6 +9,7 @@ export interface UserInterface {
   password: string;
   avatarUrl: string;
   type: UserType;
+  favorites: string[];
 }
 
 export type PublicUser = Omit<UserInterface, 'password'>;
@@ -23,4 +24,5 @@ export interface CreateUserInput {
 export interface UpdateUser {
   avatarUrl?: string;
   name?: string;
+  favorites?: string[];
 }
