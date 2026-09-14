@@ -29,6 +29,7 @@ export const TYPES = {
   CommentController: Symbol.for('CommentController'),
   // Middleware
   AuthMiddleware: Symbol.for('AuthMiddleware'),
+  OfferOwnerMiddleware: Symbol.for('OfferOwnerMiddleware'),
   // Фильтры
   ExceptionFilter: Symbol.for('ExceptionFilter'),
 };

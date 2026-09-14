@@ -13,6 +13,8 @@ import { UserRepository } from '../user/user.repository.interface.js';
 import { createOfferSchema } from './offer.dto.js';
 import { AuthMiddleware } from '../auth/auth.middleware.js';
 import { CityName } from './offer.interface.js';
+import { UserService } from '../user/user.service.js';
+import { OfferOwnerMiddleware } from '../../libs/middleware/offer-owner.middleware.js'; // И
 
 type ParamOfferId = { offerId: string };
 type ParamUserId = { userId: string };
@@ -25,6 +27,8 @@ export class OfferController extends BaseController {
     @inject(TYPES.AuthMiddleware) private readonly authMiddleware: AuthMiddleware,
     @inject(TYPES.OfferRepository) private readonly offerRepository: OfferRepository,
     @inject(TYPES.UserRepository) private readonly userRepository: UserRepository,
+    @inject(TYPES.UserService) private readonly userService: UserService,
+    @inject(TYPES.OfferOwnerMiddleware) private readonly offerOwnerMiddleware: OfferOwnerMiddleware,
   ) {
     super(logger);
     this.initRoutes();
@@ -67,7 +71,8 @@ export class OfferController extends BaseController {
       [
         this.authMiddleware,
         new ValidateObjectIdMiddleware('offerId'),
-        new DocumentExistsMiddleware(this.offerRepository, 'offerId', 'Offer'), // ✅ DB check
+        new DocumentExistsMiddleware(this.offerRepository, 'offerId', 'Offer'),
+        this.offerOwnerMiddleware,
       ]
     );
   }
@@ -79,8 +84,24 @@ export class OfferController extends BaseController {
     const validCities: CityName[] = ['Paris', 'Cologne', 'Brussels', 'Amsterdam', 'Hamburg', 'Dusseldorf'];
     const city = cityQuery && validCities.includes(cityQuery as CityName) ? (cityQuery as CityName) : undefined;
 
-    const offers = city ? await this.offerService.findByCity(city, limit) : await this.offerService.findAll(limit);
-    this.ok(res, offers);
+    const offers = city
+      ? await this.offerService.findByCity(city, limit)
+      : await this.offerService.findAll(limit);
+
+    const userId = req.tokenUserId;
+    let favoriteIds: string[] = [];
+
+    if (userId) {
+      favoriteIds = await this.userService.getFavoriteOfferIds(userId);
+    }
+
+    const offersWithFavorite = offers.map((offer) => {
+      const obj = offer.toJSON() as Record<string, unknown>;
+      obj.isFavorite = userId ? favoriteIds.includes(offer.id) : false;
+      return obj;
+    });
+
+    this.ok(res, offersWithFavorite);
   };
 
   private getByUserId = async (req: Request<ParamUserId>, res: Response): Promise<void> => {

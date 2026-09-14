@@ -28,6 +28,7 @@ import { UserController } from '../../modules/user/user.controller.js';
 import { AuthMiddleware, AuthRepository, DefaultAuthRepository } from '../../modules/auth/index.js';
 import { OfferController } from '../../modules/offer/offer.controller.js';
 import { ExceptionFilter } from '../exception-filter/index.js';
+import { OfferOwnerMiddleware } from '../middleware/offer-owner.middleware.js';
 
 const container = new Container();
 // Общие зависимости
@@ -60,6 +61,7 @@ container.bind<UserController>(TYPES.UserController).to(UserController).inSingle
 container.bind<CommentController>(TYPES.CommentController).to(CommentController).inSingletonScope();
 // Middleware
 container.bind<AuthMiddleware>(TYPES.AuthMiddleware).to(AuthMiddleware).inSingletonScope();
+container.bind<OfferOwnerMiddleware>(TYPES.OfferOwnerMiddleware).to(OfferOwnerMiddleware).inSingletonScope();
 // Filters
 container.bind<ExceptionFilter>(TYPES.ExceptionFilter).to(ExceptionFilter).inSingletonScope();
 

@@ -50,6 +50,10 @@ const userSchema: Schema<DocumentUser> = new Schema<DocumentUser>(
       enum: ['regular', 'pro'],
       default: 'regular',
     },
+    favorites: {
+      type: [String],
+      default: [],
+    },
   },
   {
     id: false,
