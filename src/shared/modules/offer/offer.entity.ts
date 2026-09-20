@@ -1,6 +1,7 @@
 import { Document, model, Model, Schema, Types } from 'mongoose';
 import { generateId } from './../../helpers/index.js';
 import { OfferInterface } from './offer.interface.js';
+import { OFFER_GOODS, OFFER_IMAGES_COUNT } from './offer.dto.js';
 
 export type DocumentOffer = OfferInterface &
   Document & {
@@ -55,7 +56,6 @@ export const offerSchema = new Schema<DocumentOffer>(
     offerLatitude: { type: Number, required: true },
     offerLongitude: { type: Number, required: true },
     offerZoom: { type: Number, required: true },
-    isFavorite: { type: Boolean, default: false },
     isPremium: { type: Boolean, default: false },
     rating: {
       type: Number,
@@ -78,6 +78,7 @@ export const offerSchema = new Schema<DocumentOffer>(
     offerGoods: {
       type: [String],
       required: true,
+      enum: OFFER_GOODS,
     },
     user: {
       type: Schema.Types.ObjectId,
@@ -88,6 +89,10 @@ export const offerSchema = new Schema<DocumentOffer>(
     images: {
       type: [String],
       required: true,
+      validate: {
+        validator: (value: string[]) => value.length === OFFER_IMAGES_COUNT,
+        message: `There must be exactly ${OFFER_IMAGES_COUNT} images`,
+      },
     },
     maxAdults: {
       type: Number,
@@ -109,7 +114,8 @@ export const offerSchema = new Schema<DocumentOffer>(
         const result = ret as Record<string, unknown>;
         delete result._id;
         delete result.__v;
-        return result;
+        const { id, ...rest } = result;
+        return { id, ...rest };
       },
     },
   },

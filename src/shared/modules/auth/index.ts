@@ -5,5 +5,5 @@ export * from './default-auth.repository.js';
 export * from './auth.service.js';
 export * from './auth.controller.js';
 export * from './auth.dto.js';
-export * from './auth.constant.js';
 export * from './auth.middleware.js';
+export * from './optional-auth.middleware.js';

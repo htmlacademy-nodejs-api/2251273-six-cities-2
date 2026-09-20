@@ -3,7 +3,7 @@ openapi: 3.0.3
 info:
   title: Real Estate Rental API
   description: |
-    REST API для сервиса аренды недвижимости.
+    REST API для сервиса аренды недвижимости «Шесть городов».
 
     Спецификация построена на основе сущностей:
     - User;
@@ -17,7 +17,10 @@ info:
     - аутентификация.
 
     В качестве публичных идентификаторов ресурсов используются строковые id,
-    сгенерированные на сервере. Внутренний MongoDB _id наружу не отдаётся.
+    сгенерированные на сервере (UUID). Внутренний MongoDB _id наружу не отдаётся.
+
+    Поле isFavorite в ответах Offer — вычисляется на сервере для текущего
+    пользователя (если он авторизован) и не хранится в базе.
   version: 1.0.0
 
 servers:
@@ -27,13 +30,10 @@ servers:
 tags:
   - name: Users
     description: Операции с пользователями
-
   - name: Offers
     description: Операции с предложениями
-
   - name: Comments
     description: Операции с комментариями
-
   - name: Auth
     description: Аутентификация
 
@@ -49,6 +49,7 @@ paths:
 
         Поля id, createdAt и updatedAt генерируются сервером автоматически.
         Поле type не передаётся клиентом и устанавливается сервером.
+        Если avatarUrl не передан — сервер подставит аватар по умолчанию.
       operationId: createUser
       requestBody:
         required: true
@@ -63,14 +64,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-
         '400':
           description: Ошибка валидации запроса
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
         '409':
           description: Пользователь с таким email уже существует
           content:
@@ -100,9 +99,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-
+        '400':
+          description: Невалидный формат ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/avatar:
+    post:
+      tags:
+        - Users
+      summary: Загрузка аватара пользователя
+      description: |
+        Загружает аватар текущего пользователя.
+        Требует авторизации. Формат файла — .jpg или .png.
+        Поле формы — avatar.
+      operationId: uploadAvatar
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Аватар успешно загружен. Возвращает обновлённого пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Некорректный файл
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Пользователь не авторизован
           content:
             application/json:
               schema:
@@ -123,7 +171,6 @@ paths:
           schema:
             type: string
             format: uuid
-
         - name: limit
           in: query
           required: false
@@ -142,7 +189,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Offer'
-
+        '400':
+          description: Невалидный формат ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Пользователь не найден
           content:
@@ -158,6 +210,10 @@ paths:
       description: |
         Возвращает список предложений.
         Поддерживает фильтрацию по городу и ограничение количества результатов.
+
+        Ресурс доступен анонимам и авторизованным клиентам.
+        Для авторизованного клиента поле isFavorite рассчитывается по его
+        списку избранного; для анонима всегда false.
       operationId: getOffers
       parameters:
         - name: city
@@ -166,7 +222,6 @@ paths:
           description: Название города
           schema:
             $ref: '#/components/schemas/CityName'
-
         - name: limit
           in: query
           required: false
@@ -194,7 +249,8 @@ paths:
         Создаёт новое предложение.
         Требует авторизации пользователя.
 
-        Поля id, createdAt и updatedAt генерируются сервером автоматически.
+        Поля id, createdAt, updatedAt, rating и commentsCount генерируются
+        сервером автоматически.
         Поле user не передаётся клиентом и определяется из токена авторизации.
       operationId: createOffer
       security:
@@ -212,14 +268,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offer'
-
         '400':
           description: Ошибка валидации запроса
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
         '401':
           description: Пользователь не авторизован
           content:
@@ -232,7 +286,10 @@ paths:
       tags:
         - Offers
       summary: Получение предложения по ID
-      description: Возвращает подробную информацию о предложении.
+      description: |
+        Возвращает подробную информацию о предложении.
+        Поле isFavorite рассчитывается для текущего пользователя.
+        Доступно анонимам и авторизованным.
       operationId: getOfferById
       parameters:
         - name: offerId
@@ -249,7 +306,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offer'
+        '400':
+          description: Невалидный формат ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Предложение не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
+    patch:
+      tags:
+        - Offers
+      summary: Редактирование предложения
+      description: |
+        Обновляет предложение по публичному идентификатору.
+        Требует авторизации. Редактировать может только автор.
+
+        Все поля опциональны, но если переданы — проходят валидацию
+        как при создании. Поля id, createdAt, updatedAt, rating,
+        commentsCount и user изменить нельзя.
+      operationId: updateOffer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          description: Публичный идентификатор предложения
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOfferInput'
+      responses:
+        '200':
+          description: Предложение успешно обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '400':
+          description: Ошибка валидации запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Пользователь не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Попытка отредактировать чужое предложение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Предложение не найдено
           content:
@@ -263,7 +385,7 @@ paths:
       summary: Удаление предложения
       description: |
         Удаляет предложение по публичному идентификатору.
-        Требует авторизации пользователя.
+        Требует авторизации. Удалить может только автор.
       operationId: deleteOffer
       security:
         - bearerAuth: []
@@ -278,14 +400,24 @@ paths:
       responses:
         '204':
           description: Предложение успешно удалено
-
+        '400':
+          description: Невалидный формат ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           description: Пользователь не авторизован
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+        '403':
+          description: Попытка удалить чужое предложение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Предложение не найдено
           content:
@@ -298,7 +430,10 @@ paths:
       tags:
         - Comments
       summary: Получение комментариев предложения
-      description: Возвращает список комментариев, оставленных к предложению.
+      description: |
+        Возвращает список комментариев, оставленных к предложению.
+        Отсортированы по дате публикации (по убыванию).
+        Максимум — 50 последних комментариев.
       operationId: getOfferComments
       parameters:
         - name: offerId
@@ -308,7 +443,6 @@ paths:
           schema:
             type: string
             format: uuid
-
         - name: limit
           in: query
           required: false
@@ -327,7 +461,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Comment'
-
+        '400':
+          description: Невалидный формат ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Предложение не найдено
           content:
@@ -369,21 +508,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
-
         '400':
           description: Ошибка валидации запроса
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
         '401':
           description: Пользователь не авторизован
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
         '404':
           description: Предложение не найдено
           content:
@@ -398,8 +534,7 @@ paths:
       summary: Удаление комментария
       description: |
         Удаляет комментарий по публичному идентификатору.
-        Требует авторизации пользователя.
-        Удалить может только автор комментария.
+        Требует авторизации. Удалить может только автор комментария.
       operationId: deleteComment
       security:
         - bearerAuth: []
@@ -411,7 +546,6 @@ paths:
           schema:
             type: string
             format: uuid
-
         - name: commentId
           in: path
           required: true
@@ -422,21 +556,24 @@ paths:
       responses:
         '204':
           description: Комментарий успешно удалён
-
+        '400':
+          description: Невалидный формат ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           description: Пользователь не авторизован
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
         '403':
           description: Пользователь не является автором комментария
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
         '404':
           description: Комментарий не найден
           content:
@@ -466,16 +603,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
-
         '400':
           description: Ошибка валидации запроса
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
         '401':
           description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Выход из системы
+      description: |
+        Завершает текущую сессию (отзывает токен).
+        Доступно только авторизованным клиентам.
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Сессия завершена
+        '401':
+          description: Токен отсутствует, невалиден или уже отозван
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/check:
+    get:
+      tags:
+        - Auth
+      summary: Проверка состояния пользователя
+      description: |
+        Проверяет, авторизован ли текущий клиент, и возвращает
+        данные пользователя без конфиденциальных полей.
+      operationId: checkAuth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Клиент авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Клиент не авторизован
           content:
             application/json:
               schema:
@@ -513,6 +694,18 @@ components:
         - Hamburg
         - Dusseldorf
 
+    OfferGood:
+      type: string
+      description: Допустимые удобства предложения
+      enum:
+        - Breakfast
+        - Air conditioning
+        - Laptop friendly workspace
+        - Baby seat
+        - Washer
+        - Towels
+        - Fridge
+
     User:
       type: object
       required:
@@ -521,6 +714,7 @@ components:
         - email
         - avatarUrl
         - type
+        - favorites
         - createdAt
         - updatedAt
       properties:
@@ -530,40 +724,42 @@ components:
           readOnly: true
           description: Публичный идентификатор пользователя
           example: 3f7b9f2e-8d4c-4b1a-9c6e-2f8a7d6b5c4d
-
         name:
           type: string
           description: Имя пользователя
           minLength: 1
-          maxLength: 50
+          maxLength: 15
           example: Ivan
-
         email:
           type: string
           format: email
           description: Email пользователя
           example: ivan@example.com
-
         avatarUrl:
           type: string
-          description: Ссылка на аватар пользователя
+          description: |
+            Ссылка на аватар пользователя.
+            Если пользователь не загрузил аватар — путь к изображению по умолчанию.
           maxLength: 2048
-          example: /avatars/ivan.png
-
+          example: /upload/default-avatar.png
         type:
           $ref: '#/components/schemas/UserType'
-
+        favorites:
+          type: array
+          description: Публичные идентификаторы предложений в избранном
+          items:
+            type: string
+            format: uuid
+          example:
+            - 7c9e6679-7425-40de-944b-e07fc1f90ae7
         createdAt:
           type: string
           format: date-time
           readOnly: true
-          description: Дата и время создания пользователя
-
         updatedAt:
           type: string
           format: date-time
           readOnly: true
-          description: Дата и время обновления пользователя
 
     CreateUser:
       type: object
@@ -571,6 +767,7 @@ components:
         Данные для создания пользователя.
 
         Поле type не передаётся клиентом и устанавливается сервером.
+        Поле avatarUrl опционально — при отсутствии сервер подставит аватар по умолчанию.
       required:
         - name
         - email
@@ -578,30 +775,24 @@ components:
       properties:
         name:
           type: string
-          description: Имя пользователя
           minLength: 1
-          maxLength: 50
+          maxLength: 15
           example: Ivan
-
         email:
           type: string
           format: email
-          description: Email пользователя
           example: ivan@example.com
-
         password:
           type: string
           format: password
-          description: Пароль пользователя
           minLength: 6
-          maxLength: 72
-          example: password123
-
+          maxLength: 12
+          example: pass1234
         avatarUrl:
           type: string
           description: Ссылка на аватар пользователя
           maxLength: 2048
-          example: /avatars/ivan.png
+          example: /upload/ivan.png
 
     LoginRequest:
       type: object
@@ -612,14 +803,13 @@ components:
         email:
           type: string
           format: email
-          description: Email пользователя
           example: ivan@example.com
-
         password:
           type: string
           format: password
-          description: Пароль пользователя
-          example: password123
+          minLength: 6
+          maxLength: 12
+          example: pass1234
 
     AuthResponse:
       type: object
@@ -631,7 +821,6 @@ components:
           type: string
           description: JWT-токен доступа
           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-
         user:
           $ref: '#/components/schemas/User'
 
@@ -667,117 +856,89 @@ components:
           type: string
           format: uuid
           readOnly: true
-          description: Публичный идентификатор предложения
           example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
-
         title:
           type: string
-          description: Название предложения
           minLength: 10
           maxLength: 100
           example: Beautiful apartment in Paris
-
         type:
           $ref: '#/components/schemas/OfferType'
-
         price:
           type: number
-          description: Стоимость аренды
           minimum: 100
           maximum: 100000
           example: 1200
-
         previewImage:
           type: string
-          description: Ссылка на превью изображение
           maxLength: 2048
           example: /images/offer-preview.jpg
-
         cityName:
           $ref: '#/components/schemas/CityName'
-
         cityLatitude:
           type: number
           format: double
-          description: Широта города
           example: 48.8566
-
         cityLongitude:
           type: number
           format: double
-          description: Долгота города
           example: 2.3522
-
         cityZoom:
           type: number
-          description: Zoom карты города
           example: 12
-
         offerLatitude:
           type: number
           format: double
-          description: Широта предложения
           example: 48.8566
-
         offerLongitude:
           type: number
           format: double
-          description: Долгота предложения
           example: 2.3522
-
         offerZoom:
           type: number
-          description: Zoom карты предложения
           example: 16
-
         isFavorite:
           type: boolean
-          description: Флаг избранного
+          readOnly: true
+          description: |
+            Признак принадлежности предложения к избранному
+            текущего пользователя. Для анонимных клиентов — false.
           example: false
-
         isPremium:
           type: boolean
-          description: Флаг премиум-предложения
           example: true
-
         rating:
           type: number
           format: float
-          description: Рейтинг предложения
-          minimum: 1
+          readOnly: true
+          description: Средний рейтинг предложения по комментариям (0 — если комментариев нет)
+          minimum: 0
           maximum: 5
           example: 4.5
-
         description:
           type: string
-          description: Описание предложения
           minLength: 20
           maxLength: 1024
           example: A cozy apartment located in the center of Paris.
-
         bedrooms:
           type: integer
-          description: Количество спален
           minimum: 1
           maximum: 8
           example: 2
-
         offerGoods:
           type: array
-          description: Список удобств
           items:
-            type: string
+            $ref: '#/components/schemas/OfferGood'
           example:
-            - Wi-Fi
-            - Kitchen
-            - Washing machine
-
+            - Breakfast
+            - Air conditioning
         user:
           $ref: '#/components/schemas/User'
-
         images:
           type: array
-          description: Список изображений предложения
+          description: Ровно 6 фотографий жилья
+          minItems: 6
+          maxItems: 6
           items:
             type: string
             maxLength: 2048
@@ -785,41 +946,36 @@ components:
             - /images/offer-1.jpg
             - /images/offer-2.jpg
             - /images/offer-3.jpg
-
+            - /images/offer-4.jpg
+            - /images/offer-5.jpg
+            - /images/offer-6.jpg
         maxAdults:
           type: integer
-          description: Максимальное количество гостей
           minimum: 1
           maximum: 10
           example: 4
-
         commentsCount:
           type: integer
-          description: Количество комментариев к предложению
+          readOnly: true
           minimum: 0
           example: 5
-
         createdAt:
           type: string
           format: date-time
           readOnly: true
-          description: Дата и время создания предложения
-
         updatedAt:
           type: string
           format: date-time
           readOnly: true
-          description: Дата и время обновления предложения
 
     CreateOfferInput:
       type: object
       description: |
         Данные для создания предложения от клиента.
 
-        Поле user не передаётся клиентом и определяется на сервере
-        из авторизованного пользователя.
-
-        Поля id, createdAt, updatedAt и commentsCount генерируются сервером автоматически.
+        Поле user не передаётся клиентом — определяется на сервере.
+        Поля id, createdAt, updatedAt, rating и commentsCount
+        генерируются/рассчитываются сервером автоматически.
       required:
         - title
         - type
@@ -832,7 +988,6 @@ components:
         - offerLatitude
         - offerLongitude
         - offerZoom
-        - rating
         - description
         - bedrooms
         - offerGoods
@@ -841,125 +996,143 @@ components:
       properties:
         title:
           type: string
-          description: Название предложения
           minLength: 10
           maxLength: 100
           example: Beautiful apartment in Paris
-
         type:
           $ref: '#/components/schemas/OfferType'
-
         price:
           type: number
-          description: Стоимость аренды
           minimum: 100
           maximum: 100000
           example: 1200
-
         previewImage:
           type: string
-          description: Ссылка на превью изображение
           maxLength: 2048
           example: /images/offer-preview.jpg
-
         cityName:
           $ref: '#/components/schemas/CityName'
-
         cityLatitude:
           type: number
           format: double
-          description: Широта города
           example: 48.8566
-
         cityLongitude:
           type: number
           format: double
-          description: Долгота города
           example: 2.3522
-
         cityZoom:
           type: number
-          description: Zoom карты города
           example: 12
-
         offerLatitude:
           type: number
           format: double
-          description: Широта предложения
           example: 48.8566
-
         offerLongitude:
           type: number
           format: double
-          description: Долгота предложения
           example: 2.3522
-
         offerZoom:
           type: number
-          description: Zoom карты предложения
           example: 16
-
-        isFavorite:
-          type: boolean
-          description: Флаг избранного
-          default: false
-          example: false
-
         isPremium:
           type: boolean
-          description: Флаг премиум-предложения
-          default: false
+          description: Если не передан — сервер считает предложение обычным
           example: false
-
-        rating:
-          type: number
-          format: float
-          description: Рейтинг предложения
-          minimum: 1
-          maximum: 5
-          example: 4.5
-
         description:
           type: string
-          description: Описание предложения
           minLength: 20
           maxLength: 1024
           example: A cozy apartment located in the center of Paris.
-
         bedrooms:
           type: integer
-          description: Количество спален
           minimum: 1
           maximum: 8
           example: 2
-
         offerGoods:
           type: array
-          description: Список удобств
+          minItems: 1
           items:
-            type: string
-          example:
-            - Wi-Fi
-            - Kitchen
-            - Washing machine
-
+            $ref: '#/components/schemas/OfferGood'
         images:
           type: array
-          description: Список изображений предложения
+          description: Ровно 6 фотографий жилья
+          minItems: 6
+          maxItems: 6
           items:
             type: string
             maxLength: 2048
-          example:
-            - /images/offer-1.jpg
-            - /images/offer-2.jpg
-            - /images/offer-3.jpg
-
         maxAdults:
           type: integer
-          description: Максимальное количество гостей
           minimum: 1
           maximum: 10
           example: 4
+
+    UpdateOfferInput:
+      type: object
+      description: |
+        Данные для частичного обновления предложения (PATCH).
+        Все поля опциональны, но если переданы — валидируются как при создании.
+
+        Поля id, createdAt, updatedAt, rating, commentsCount и user
+        изменить нельзя.
+      properties:
+        title:
+          type: string
+          minLength: 10
+          maxLength: 100
+        type:
+          $ref: '#/components/schemas/OfferType'
+        price:
+          type: number
+          minimum: 100
+          maximum: 100000
+        previewImage:
+          type: string
+          maxLength: 2048
+        cityName:
+          $ref: '#/components/schemas/CityName'
+        cityLatitude:
+          type: number
+          format: double
+        cityLongitude:
+          type: number
+          format: double
+        cityZoom:
+          type: number
+        offerLatitude:
+          type: number
+          format: double
+        offerLongitude:
+          type: number
+          format: double
+        offerZoom:
+          type: number
+        isPremium:
+          type: boolean
+        description:
+          type: string
+          minLength: 20
+          maxLength: 1024
+        bedrooms:
+          type: integer
+          minimum: 1
+          maximum: 8
+        offerGoods:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OfferGood'
+        images:
+          type: array
+          minItems: 6
+          maxItems: 6
+          items:
+            type: string
+            maxLength: 2048
+        maxAdults:
+          type: integer
+          minimum: 1
+          maximum: 10
 
     Comment:
       type: object
@@ -977,66 +1150,48 @@ components:
           type: string
           format: uuid
           readOnly: true
-          description: Публичный идентификатор комментария
           example: 9a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d
-
         text:
           type: string
-          description: Текст комментария
           minLength: 5
           maxLength: 1024
           example: Great place, highly recommend!
-
         rating:
           type: number
           format: float
-          description: Оценка предложения от автора комментария
           minimum: 1
           maximum: 5
           example: 4.0
-
         user:
           $ref: '#/components/schemas/User'
-
         offer:
           $ref: '#/components/schemas/Offer'
-
         createdAt:
           type: string
           format: date-time
           readOnly: true
-          description: Дата и время создания комментария
-
         updatedAt:
           type: string
           format: date-time
           readOnly: true
-          description: Дата и время обновления комментария
 
     CreateCommentInput:
       type: object
       description: |
         Данные для создания комментария от клиента.
-
-        Поле user не передаётся клиентом и определяется на сервере
-        из авторизованного пользователя.
-
-        Поля id, createdAt и updatedAt генерируются сервером автоматически.
+        Поле user не передаётся — определяется на сервере.
       required:
         - text
         - rating
       properties:
         text:
           type: string
-          description: Текст комментария
           minLength: 5
           maxLength: 1024
           example: Great place, highly recommend!
-
         rating:
           type: number
           format: float
-          description: Оценка предложения
           minimum: 1
           maximum: 5
           example: 4.0
@@ -1049,15 +1204,10 @@ components:
       properties:
         statusCode:
           type: integer
-          description: HTTP-статус ошибки
           example: 404
-
         error:
           type: string
-          description: Текстовое название ошибки
           example: Not Found
-
         message:
           type: string
-          description: Сообщение об ошибке
           example: Entity not found

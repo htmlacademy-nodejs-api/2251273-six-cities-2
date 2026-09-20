@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { OfferGood } from './offer.dto.js';
 
 export type OfferType = 'apartment' | 'house' | 'room' | 'hotel';
 export type CityName =
@@ -24,18 +25,24 @@ export interface OfferInterface {
   offerLatitude: number;
   offerLongitude: number;
   offerZoom: number;
-  isFavorite: boolean;
   isPremium: boolean;
   rating: number;
   description: string;
   bedrooms: number;
-  offerGoods: string[];
+  offerGoods: OfferGood[];
   user: Types.ObjectId;
   images: string[];
   maxAdults: number;
   commentsCount: number;
 }
 
-export type CreateOffer = Omit<OfferInterface, 'id' | 'createdAt' | 'updatedAt' | 'commentsCount'>;
+export type CreateOffer = Omit<
+  OfferInterface,
+  'id' | 'createdAt' | 'updatedAt' | 'commentsCount' | 'rating'
+>;
 
 export type CreateOfferInput = Omit<CreateOffer, 'user'>;
+
+export type UpdateOffer = Partial<
+  Omit<OfferInterface, 'id' | 'createdAt' | 'updatedAt' | 'commentsCount' | 'rating' | 'user'>
+>;

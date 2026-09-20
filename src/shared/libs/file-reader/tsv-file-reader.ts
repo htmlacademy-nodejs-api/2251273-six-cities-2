@@ -1,62 +1,38 @@
-import * as fs from 'node:fs';
-import * as readline from 'node:readline';
-import { TSVParser } from './../tsv-parser/index.js';
-import { OffersItemType } from '../../types/index.type.js';
-import { FileReader } from './file-reader.interface.js';
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { LoggerInterface } from '../logger/logger.interface.js';
+import { TSVParser } from '../tsv-parser/index.js';
+import { OffersItemType } from '../../types/index.type.js';
 
-export class TSVFileReader implements FileReader<OffersItemType> {
+export class TSVFileReader {
   constructor(
     private readonly filename: string,
     private readonly parser: TSVParser,
-    private readonly logger: LoggerInterface
+    private readonly logger: LoggerInterface,
   ) {}
 
   public async read(): Promise<OffersItemType[]> {
-    const rl = readline.createInterface({
-      input: fs.createReadStream(this.filename, { encoding: 'utf8' }),
-      crlfDelay: Infinity,
-    });
+    const result: OffersItemType[] = [];
 
-    const results: OffersItemType[] = [];
-    let isFirstLine = true;
+    const readStream = createReadStream(this.filename, { encoding: 'utf-8' });
+    const rl = createInterface({ input: readStream, crlfDelay: Infinity });
+
     let lineNumber = 0;
-    let skippedCount = 0;
-    const skippedRows: number[] = [];
-
     for await (const line of rl) {
-      lineNumber++;
-
-      if (isFirstLine) {
-        isFirstLine = false;
+      lineNumber += 1;
+      if (lineNumber === 1 && line.startsWith('title\t')) {
         continue;
       }
-
-      if (!line.trim()) {
+      if (line.trim() === '') {
         continue;
       }
-
       try {
-        const parsed = this.parser.parse(line);
-        results.push(parsed);
+        result.push(this.parser.parse(line) as OffersItemType);
       } catch (error) {
-        skippedCount++;
-        skippedRows.push(lineNumber);
-        this.logger.warn(
-          `TSVFileReader: Skipping line ${lineNumber}`
-        );
+        this.logger.warn(`TSVFileReader: Skipped line #${lineNumber}`);
       }
     }
 
-    if (skippedCount > 0) {
-      this.logger.warn(
-        `TSVFileReader: Skipped ${skippedCount} rows: ${skippedRows.join(', ')}`
-      );
-    }
-    this.logger.info(
-      `TSVFileReader: Successfully read ${results.length} records from ${this.filename}`
-    );
-
-    return results;
+    return result;
   }
 }

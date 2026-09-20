@@ -47,10 +47,14 @@ const commentSchema: Schema<DocumentComment> = new Schema<DocumentComment>(
         const result = ret as Record<string, unknown>;
         delete result._id;
         delete result.__v;
-        return result;
+        const { id, ...rest } = result;
+        return { id, ...rest };
       },
     },
   },
 );
 
-export const CommentModel: Model<DocumentComment> = model<DocumentComment>('Comment', commentSchema,);
+export const CommentModel: Model<DocumentComment> = model<DocumentComment>(
+  'Comment',
+  commentSchema,
+);

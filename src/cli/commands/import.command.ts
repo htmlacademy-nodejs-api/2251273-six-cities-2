@@ -2,21 +2,27 @@ import { Command } from './command.interface.js';
 import { TSVFileReader } from '../../shared/libs/file-reader/index.js';
 import { TSVParser } from '../../shared/libs/tsv-parser/index.js';
 import { OfferModel } from '../../shared/modules/offer/offer.entity.js';
-import { UserModel } from '../../shared/modules/user/user.entity.js';
+import { UserModel, DEFAULT_AVATAR_URL } from '../../shared/modules/user/user.entity.js';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../shared/libs/container/index.js';
 import { LoggerInterface } from '../../shared/libs/logger/index.js';
 import { DatabaseClientInterface } from '../../shared/libs/database/index.js';
 import { OffersItemType } from '../../shared/types/index.type.js';
 import { CityName, CreateOffer, OfferType } from '../../shared/modules/offer/index.js';
+import { OFFER_GOODS, OfferGood } from '../../shared/modules/offer/offer.dto.js';
 import { hashPassword } from './../../shared/helpers/password.helper.js';
+
+function toOfferGoods(raw: string[]): OfferGood[] {
+  const allowed = new Set<string>(OFFER_GOODS);
+  return raw.filter((good): good is OfferGood => allowed.has(good));
+}
 
 @injectable()
 export class ImportCommand implements Command {
   constructor(
     @inject(TYPES.Logger) private readonly logger: LoggerInterface,
     @inject(TYPES.DatabaseClient) private readonly databaseClient: DatabaseClientInterface,
-  ) { }
+  ) {}
 
   public getName(): string {
     return '--import';
@@ -96,12 +102,10 @@ export class ImportCommand implements Command {
         longitude: offerLongitude,
         zoom: offerZoom,
       },
-      isFavorite,
       isPremium,
-      rating,
       description,
       bedrooms,
-      goods: offerGoods,
+      goods: offerGoodsRaw,
       host: {
         name: userName,
         avatarUrl: userAvatarUrl,
@@ -129,12 +133,10 @@ export class ImportCommand implements Command {
       offerLatitude,
       offerLongitude,
       offerZoom,
-      isFavorite,
       isPremium,
-      rating,
       description,
       bedrooms,
-      offerGoods,
+      offerGoods: toOfferGoods(offerGoodsRaw),
       user: user._id,
       images,
       maxAdults,
@@ -148,7 +150,7 @@ export class ImportCommand implements Command {
     avatarUrl: string,
     isPro: boolean,
   ) {
-    const email = `${name.toLowerCase().replace(/\s+/g, '.')}@example.com`;
+    const email = `${name.toLowerCase().replace(/\s+/g, ' ')}@example.com`;
 
     let user = await UserModel.findOne({ email }).exec();
 
@@ -159,7 +161,7 @@ export class ImportCommand implements Command {
         name,
         email,
         password: hashedPassword,
-        avatarUrl: avatarUrl || 'https://example.com/default-avatar.jpg',
+        avatarUrl: avatarUrl || DEFAULT_AVATAR_URL,
         type: isPro ? 'pro' : 'regular',
       });
       this.logger.info(`ImportCommand: Created user ${email}`);

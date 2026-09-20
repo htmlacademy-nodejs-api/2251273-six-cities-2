@@ -8,5 +8,6 @@ export interface CommentRepository extends Repository<DocumentComment>, ExistsCh
   findByOfferId(offerId: string): Promise<DocumentComment[]>;
   findById(id: string): Promise<DocumentComment | null>;
   deleteById(id: string): Promise<boolean>;
+  deleteByOfferId(offerId: string): Promise<number>;
   existsById(id: string): Promise<boolean>;
 }

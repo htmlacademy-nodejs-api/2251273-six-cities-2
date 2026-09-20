@@ -1,28 +1,22 @@
 import { createWriteStream, WriteStream } from 'node:fs';
-import { finished } from 'node:stream/promises';
-import { FileWriter } from './file-writer.interface.js';
+import { once } from 'node:events';
 
-export class TSVFileWriter implements FileWriter {
-  // Создаем экземпляр класса WriteStream
+export class TSVFileWriter {
   private readonly stream: WriteStream;
 
-  constructor(filename: string) {
-    // Создаем стрим для записи
-    this.stream = createWriteStream(filename, { encoding: 'utf8' });
+  constructor(filePath: string) {
+    this.stream = createWriteStream(filePath, { encoding: 'utf-8' });
   }
 
-  // Записываем строку
-  public async write(row: string): Promise<void> {
-    // Записываем строку в стрим
-    if (!this.stream.write(`${row}\n`)) {
-      // Ждем пока стрим освободится
-      await new Promise<void>((resolve) => this.stream.once('drain', resolve));
+  public async write(line: string): Promise<void> {
+    const ok = this.stream.write(`${line}\n`);
+    if (!ok) {
+      await once(this.stream, 'drain');
     }
   }
 
-  // Закрываем файл
   public async close(): Promise<void> {
     this.stream.end();
-    await finished(this.stream);
+    await once(this.stream, 'finish');
   }
 }

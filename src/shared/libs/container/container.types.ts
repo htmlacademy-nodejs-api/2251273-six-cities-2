@@ -1,5 +1,5 @@
 export const TYPES = {
-  // Общие зависимости)
+  // Общие зависимости
   Logger: Symbol.for('Logger'),
   Config: Symbol.for('Config'),
   // REST
@@ -29,6 +29,7 @@ export const TYPES = {
   CommentController: Symbol.for('CommentController'),
   // Middleware
   AuthMiddleware: Symbol.for('AuthMiddleware'),
+  OptionalAuthMiddleware: Symbol.for('OptionalAuthMiddleware'),
   OfferOwnerMiddleware: Symbol.for('OfferOwnerMiddleware'),
   // Фильтры
   ExceptionFilter: Symbol.for('ExceptionFilter'),

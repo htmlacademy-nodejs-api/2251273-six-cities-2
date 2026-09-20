@@ -2,6 +2,8 @@ import { Document, model, Model, Schema, Types } from 'mongoose';
 import { generateId } from '../../helpers/index.js';
 import { UserInterface } from './user.interface.js';
 
+export const DEFAULT_AVATAR_URL = '/upload/default-avatar.png';
+
 export type DocumentUser = UserInterface &
   Document & {
     _id: Types.ObjectId;
@@ -21,7 +23,7 @@ const userSchema: Schema<DocumentUser> = new Schema<DocumentUser>(
       required: true,
       trim: true,
       minlength: 1,
-      maxlength: 50,
+      maxlength: 15,
     },
 
     email: {
@@ -41,7 +43,7 @@ const userSchema: Schema<DocumentUser> = new Schema<DocumentUser>(
     avatarUrl: {
       type: String,
       trim: true,
-      default: '',
+      default: DEFAULT_AVATAR_URL,
     },
 
     type: {
@@ -50,6 +52,7 @@ const userSchema: Schema<DocumentUser> = new Schema<DocumentUser>(
       enum: ['regular', 'pro'],
       default: 'regular',
     },
+
     favorites: {
       type: [String],
       default: [],
@@ -68,7 +71,8 @@ const userSchema: Schema<DocumentUser> = new Schema<DocumentUser>(
         delete result._id;
         delete result.__v;
 
-        return result;
+        const { id, ...rest } = result;
+        return { id, ...rest };
       },
     },
   },

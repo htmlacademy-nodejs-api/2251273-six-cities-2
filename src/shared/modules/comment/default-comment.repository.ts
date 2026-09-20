@@ -31,6 +31,12 @@ export class DefaultCommentRepository implements CommentRepository {
     return result.deletedCount > 0;
   }
 
+  public async deleteByOfferId(offerId: string): Promise<number> {
+    this.logger.info(`DefaultCommentRepository: Deleting comments for offer ${offerId}`);
+    const result = await CommentModel.deleteMany({ offer: offerId }).exec();
+    return result.deletedCount ?? 0;
+  }
+
   public async existsById(id: string): Promise<boolean> {
     const count = await CommentModel.countDocuments({ id }).exec();
     return count > 0;

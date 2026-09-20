@@ -10,6 +10,7 @@ import { AuthService, AuthError } from './auth.service.js';
 import { loginSchema } from './auth.dto.js';
 import { extractBearerToken } from '../../helpers/auth.helpers.js';
 import { AuthMiddleware } from './auth.middleware.js';
+import { UserService } from '../user/user.service.js';
 
 @injectable()
 export class AuthController extends BaseController {
@@ -17,13 +18,13 @@ export class AuthController extends BaseController {
     @inject(TYPES.Logger) protected override readonly logger: LoggerInterface,
     @inject(TYPES.AuthService) private readonly authService: AuthService,
     @inject(TYPES.AuthMiddleware) private readonly authMiddleware: AuthMiddleware,
+    @inject(TYPES.UserService) private readonly userService: UserService,
   ) {
     super(logger);
     this.initRoutes();
   }
 
   private initRoutes(): void {
-    // POST /auth/login — вход в систему
     this.addRoute(
       HttpMethod.Post,
       '/login',
@@ -31,13 +32,11 @@ export class AuthController extends BaseController {
       [new ValidateDtoMiddleware(loginSchema)],
     );
 
-    // POST /auth/logout — выход из системы
     this.addRoute(HttpMethod.Post, '/logout', this.logout, [this.authMiddleware]);
+
+    this.addRoute(HttpMethod.Get, '/check', this.check, [this.authMiddleware]);
   }
 
-  /**
-   * Вход в систему.
-   */
   private login = async (req: Request, res: Response): Promise<void> => {
     try {
       const dto = req.body;
@@ -63,9 +62,6 @@ export class AuthController extends BaseController {
     }
   };
 
-  /**
-   * Выход из системы.
-   */
   private logout = async (req: Request, res: Response): Promise<void> => {
     try {
       const token = extractBearerToken(req);
@@ -86,5 +82,21 @@ export class AuthController extends BaseController {
       this.logger.error(`AuthController: logout failed: ${msg}`);
       this.internalServerError(res, 'Logout failed');
     }
+  };
+
+  private check = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.tokenUserId;
+    if (!userId) {
+      this.unauthorized(res, 'User is not authenticated');
+      return;
+    }
+
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      this.unauthorized(res, 'User not found');
+      return;
+    }
+
+    this.ok(res, user);
   };
 }
