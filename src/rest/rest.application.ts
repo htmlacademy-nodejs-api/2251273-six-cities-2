@@ -63,9 +63,13 @@ export class RestApplication {
   }
 
   private initRoutes(): void {
+
     this.app.use('/auth', this.authController.getRouter());
+
     this.app.use('/users', this.userController.getRouter());
+
     this.app.use(this.offerController.getRouter());
+
     this.app.use('/offers', this.commentController.getRouter());
 
     this.app.use((_req, res) => {
@@ -76,6 +80,7 @@ export class RestApplication {
     });
 
     this.app.use(this.exceptionFilter.catch.bind(this.exceptionFilter));
+
     this.logger.info('RestApplication: Routes initialized.');
   }
 

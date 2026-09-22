@@ -35,13 +35,35 @@ export class DefaultUserRepository implements UserRepository {
 
   public async create(dto: CreateUserInput): Promise<DocumentUser> {
     this.logger.info('DefaultUserRepository: Creating new user');
-    const user = new UserModel({ ...dto, avatarUrl: dto.avatarUrl ?? '' });
+    const user = new UserModel(dto);
     return user.save();
   }
 
   public async updateById(id: string, dto: Partial<UpdateUser>): Promise<DocumentUser | null> {
     this.logger.debug(`DefaultUserRepository: Updating user ${id}`);
     return UserModel.findOneAndUpdate({ id }, { $set: dto }, { returnDocument: 'after' }).exec();
+  }
+
+  public async addFavorite(userId: string, offerId: string): Promise<DocumentUser | null> {
+    this.logger.info(
+      `DefaultUserRepository: Adding offer ${offerId} to favorites of user ${userId}`,
+    );
+    return UserModel.findOneAndUpdate(
+      { id: userId },
+      { $addToSet: { favorites: offerId } },
+      { returnDocument: 'after' },
+    ).exec();
+  }
+
+  public async removeFavorite(userId: string, offerId: string): Promise<DocumentUser | null> {
+    this.logger.info(
+      `DefaultUserRepository: Removing offer ${offerId} from favorites of user ${userId}`,
+    );
+    return UserModel.findOneAndUpdate(
+      { id: userId },
+      { $pull: { favorites: offerId } },
+      { returnDocument: 'after' },
+    ).exec();
   }
 
   public async existsById(id: string): Promise<boolean> {

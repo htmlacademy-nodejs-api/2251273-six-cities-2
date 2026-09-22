@@ -1,10 +1,12 @@
 #!/bin/bash
 # ============================================================================
-# 🧪 ПОЛНАЯ ПРОВЕРКА REST API «Шесть городов» (Финальная версия + Загрузка файлов)
+# 🧪 ПОЛНАЯ ПРОВЕРКА REST API «Шесть городов» (актуальная версия)
 # ============================================================================
 BASE_URL="${API_URL:-http://localhost:3000}"
 TEST_EMAIL="ivan-$(date +%s)@test.com"
+# Пароль 6..12 (ТЗ 3.1.1)
 TEST_PASSWORD="pass12345"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -12,7 +14,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# --- НАДЕЖНАЯ ФУНКЦИЯ ИЗВЛЕЧЕНИЯ ID (через awk) ---
+# --- ИЗВЛЕЧЕНИЕ ID (через awk) ---
 extract_id() {
   local json="$1"
   echo "$json" | tr -d '\r\n' | awk -v key='"id":' '
@@ -94,8 +96,13 @@ check "$RESP" "200" "POST /auth/login — Успешный вход"
 TOKEN=$(echo "$RESP" | sed '$d' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 echo -e "   └─ Сохранен TOKEN: ${YELLOW}${TOKEN:0:30}...${NC}"
 
-# ✅ ИСПРАВЛЕННЫЙ ТЕСТ: Загрузка аватара (убран $USER_ID из URL)
-echo -e "${BLUE}📋 ТЕСТ 6.1: Загрузка аватара пользователя${NC}"
+RESP=$(do_req -X GET "$BASE_URL/auth/check" -H "Authorization: Bearer $TOKEN")
+check "$RESP" "200" "GET /auth/check — авторизован"
+
+RESP=$(do_req -X GET "$BASE_URL/auth/check")
+check "$RESP" "401" "GET /auth/check — без токена"
+
+echo -e "${BLUE}📋 ТЕСТ: Загрузка аватара пользователя${NC}"
 TEST_AVATAR=$(mktemp /tmp/avatar-XXXXXX.png)
 printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > "$TEST_AVATAR"
 
@@ -112,13 +119,15 @@ fi
 rm -f "$TEST_AVATAR"
 
 RESP=$(do_req -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" \
-  -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"wrong_password\"}")
+  -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"wrong123\"}")
 check "$RESP" "401" "POST /auth/login — Неверный пароль"
 
 # =========================================================================
 # 3. ПРЕДЛОЖЕНИЯ (Offers)
 # =========================================================================
 echo -e "\n${BLUE}📌 3. ПРЕДЛОЖЕНИЯ${NC}"
+
+# rating не передаём, images — ровно 6, offerGoods — из enum.
 OFFER_PAYLOAD='{
   "title":"Paris apartment",
   "type":"apartment",
@@ -131,11 +140,17 @@ OFFER_PAYLOAD='{
   "offerLatitude":48.8,
   "offerLongitude":2.3,
   "offerZoom":16,
-  "rating":4.5,
-  "description":"Nice place in Paris center",
+  "description":"Nice place in Paris center.",
   "bedrooms":2,
-  "offerGoods":["Wi-Fi"],
-  "images":["http://x.com/img1.jpg"],
+  "offerGoods":["Breakfast","Washer","Towels"],
+  "images":[
+    "http://x.com/1.jpg",
+    "http://x.com/2.jpg",
+    "http://x.com/3.jpg",
+    "http://x.com/4.jpg",
+    "http://x.com/5.jpg",
+    "http://x.com/6.jpg"
+  ],
   "maxAdults":4
 }'
 
@@ -159,6 +174,47 @@ check "$RESP" "200" "GET /offers/:offerId — Получение оффера"
 
 RESP=$(do_req -X GET "$BASE_URL/users/$USER_ID/offers?limit=5")
 check "$RESP" "200" "GET /users/:userId/offers — Офферы пользователя"
+
+# --- PATCH ---
+RESP=$(do_req -X PATCH "$BASE_URL/offers/$OFFER_ID" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"price":2000}')
+check "$RESP" "200" "PATCH /offers/:offerId — Редактирование"
+
+RESP=$(do_req -X PATCH "$BASE_URL/offers/$OFFER_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"price":2000}')
+check "$RESP" "401" "PATCH /offers/:offerId — Без авторизации"
+
+RESP=$(do_req -X PATCH "$BASE_URL/offers/$OFFER_ID" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"price":50}')
+check "$RESP" "400" "PATCH /offers/:offerId — Невалидные данные"
+
+# --- Избранное ---
+RESP=$(do_req -X POST "$BASE_URL/offers/$OFFER_ID/favorite" \
+  -H "Authorization: Bearer $TOKEN")
+check "$RESP" "200" "POST /offers/:offerId/favorite"
+
+RESP=$(do_req -X GET "$BASE_URL/offers/favorites" \
+  -H "Authorization: Bearer $TOKEN")
+check "$RESP" "200" "GET /offers/favorites"
+
+RESP=$(do_req -X GET "$BASE_URL/offers/favorites")
+check "$RESP" "401" "GET /offers/favorites — Без авторизации"
+
+RESP=$(do_req -X DELETE "$BASE_URL/offers/$OFFER_ID/favorite" \
+  -H "Authorization: Bearer $TOKEN")
+check "$RESP" "204" "DELETE /offers/:offerId/favorite"
+
+# --- Премиум ---
+RESP=$(do_req -X GET "$BASE_URL/offers/premium/Paris")
+check "$RESP" "200" "GET /offers/premium/:city"
+
+RESP=$(do_req -X GET "$BASE_URL/offers/premium/Atlantis")
+check "$RESP" "400" "GET /offers/premium/:city — Неизвестный город"
 
 # =========================================================================
 # 4. КОММЕНТАРИИ (Comments)
@@ -204,5 +260,5 @@ RESP=$(do_req -X GET "$BASE_URL/unknown-route")
 check "$RESP" "404" "GET /unknown-route — Маршрут не найден"
 
 echo -e "\n${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║                    ✅ ПРОВЕРКА ЗАВЕРШЕНА!                    ║${NC}"
+echo -e "${CYAN}║                    -✅ ПРОВЕРКА ЗАВЕРШЕНА!                    ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"

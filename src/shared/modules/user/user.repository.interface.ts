@@ -10,5 +10,7 @@ export interface UserRepository extends Repository<DocumentUser>, ExistsChecker 
   findByEmailForAuth(email: string): Promise<DocumentUser | null>;
   create(dto: CreateUserInput): Promise<DocumentUser>;
   updateById(id: string, dto: Partial<UpdateUser>): Promise<DocumentUser | null>;
+  addFavorite(userId: string, offerId: string): Promise<DocumentUser | null>;
+  removeFavorite(userId: string, offerId: string): Promise<DocumentUser | null>;
   existsById(id: string): Promise<boolean>;
 }

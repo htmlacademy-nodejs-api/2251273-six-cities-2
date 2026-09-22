@@ -22,7 +22,7 @@ export class UserService {
       name: dto.name,
       email: dto.email,
       password: passwordHash,
-      avatarUrl: dto.avatarUrl ?? '',
+      avatarUrl: dto.avatarUrl,
     });
     return this.toPublicUser(user);
   }
@@ -54,6 +54,16 @@ export class UserService {
 
   public async getFavoriteOfferIds(userId: string): Promise<string[]> {
     const user = await this.userRepository.findById(userId);
-    return user?.favorites || [];
+    return user?.favorites ?? [];
+  }
+
+  public async addFavorite(userId: string, offerId: string): Promise<PublicUser | null> {
+    const user = await this.userRepository.addFavorite(userId, offerId);
+    return user ? this.toPublicUser(user) : null;
+  }
+
+  public async removeFavorite(userId: string, offerId: string): Promise<PublicUser | null> {
+    const user = await this.userRepository.removeFavorite(userId, offerId);
+    return user ? this.toPublicUser(user) : null;
   }
 }

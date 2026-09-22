@@ -1,5 +1,19 @@
 import { z } from 'zod';
 
+export const OFFER_GOODS = [
+  'Breakfast',
+  'Air conditioning',
+  'Laptop friendly workspace',
+  'Baby seat',
+  'Washer',
+  'Towels',
+  'Fridge',
+] as const;
+
+export type OfferGood = (typeof OFFER_GOODS)[number];
+
+export const OFFER_IMAGES_COUNT = 6;
+
 export const createOfferSchema = z.object({
   title: z
     .string()
@@ -23,7 +37,7 @@ export const createOfferSchema = z.object({
 
   cityName: z.enum(
     ['Paris', 'Cologne', 'Brussels', 'Amsterdam', 'Hamburg', 'Dusseldorf'] as const,
-    { error: 'Invalid city name' }
+    { error: 'Invalid city name' },
   ),
 
   cityLatitude: z.number({ error: 'City latitude must be a number' }),
@@ -34,13 +48,7 @@ export const createOfferSchema = z.object({
   offerLongitude: z.number({ error: 'Offer longitude must be a number' }),
   offerZoom: z.number({ error: 'Offer zoom must be a number' }),
 
-  isFavorite: z.boolean().optional().default(false),
-  isPremium: z.boolean().optional().default(false),
-
-  rating: z
-    .number({ error: 'Rating must be a number' })
-    .min(1, 'Rating must be at least 1')
-    .max(5, 'Rating must be at most 5'),
+  isPremium: z.boolean().optional(),
 
   description: z
     .string()
@@ -54,15 +62,13 @@ export const createOfferSchema = z.object({
     .min(1, 'Bedrooms must be at least 1')
     .max(8, 'Bedrooms must be at most 8'),
 
-  offerGoods: z.array(
-    z.string().trim().min(1, 'Offer good cannot be empty'),
-    { error: 'Offer goods must be an array of strings' }
-  ),
+  offerGoods: z
+    .array(z.enum(OFFER_GOODS, { error: 'Unknown offer good' }))
+    .min(1, 'At least one offer good is required'),
 
-  images: z.array(
-    z.string().trim().max(2048, 'Image URL is too long'),
-    { error: 'Images must be an array of strings' }
-  ),
+  images: z
+    .array(z.string().trim().max(2048, 'Image URL is too long'))
+    .length(OFFER_IMAGES_COUNT, `There must be exactly ${OFFER_IMAGES_COUNT} images`),
 
   maxAdults: z
     .number({ error: 'Max adults must be a number' })
@@ -72,3 +78,5 @@ export const createOfferSchema = z.object({
 });
 
 export type CreateOfferDto = z.infer<typeof createOfferSchema>;
+export const updateOfferSchema = createOfferSchema.partial();
+export type UpdateOfferDto = z.infer<typeof updateOfferSchema>;

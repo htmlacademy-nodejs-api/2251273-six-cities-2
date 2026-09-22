@@ -26,7 +26,7 @@ export const createUserSchema = z.object({
     .string()
     .trim()
     .min(1, 'Name is required')
-    .max(50, 'Name must be at most 50 characters'),
+    .max(15, 'Name must be at most 15 characters'),
 
   email: z.preprocess(
     trimString,
@@ -38,7 +38,7 @@ export const createUserSchema = z.object({
   password: z
     .string()
     .min(6, 'Password must be at least 6 characters long')
-    .max(72, 'Password must be at most 72 characters'),
+    .max(12, 'Password must be at most 12 characters'),
 
   avatarUrl: z.preprocess(
     normalizeOptionalString,

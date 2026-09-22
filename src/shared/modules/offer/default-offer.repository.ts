@@ -4,7 +4,7 @@ import { TYPES } from '../../libs/container/container.types.js';
 import { LoggerInterface } from '../../libs/logger/logger.interface.js';
 import { OfferRepository } from './offer.repository.interface.js';
 import { DocumentOffer, OfferModel } from './offer.entity.js';
-import { CityName, CreateOffer } from './offer.interface.js';
+import { CityName, CreateOffer, UpdateOffer } from './offer.interface.js';
 
 @injectable()
 export class DefaultOfferRepository implements OfferRepository {
@@ -39,15 +39,45 @@ export class DefaultOfferRepository implements OfferRepository {
     return OfferModel.find({ cityName: city }).populate('user').sort({ createdAt: -1 }).limit(limit).exec();
   }
 
+  public async findPremiumByCity(city: CityName, limit: number = 3): Promise<DocumentOffer[]> {
+    this.logger.debug(`DefaultOfferRepository: Searching premium offers in city ${city}`);
+    return OfferModel.find({ cityName: city, isPremium: true })
+      .populate('user')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .exec();
+  }
+
   public async findAll(limit: number = 60): Promise<DocumentOffer[]> {
     this.logger.debug(`DefaultOfferRepository: Fetching all offers (limit: ${limit})`);
     return OfferModel.find().populate('user').sort({ createdAt: -1 }).limit(limit).exec();
+  }
+
+  public async findByIds(ids: string[], limit: number = 60): Promise<DocumentOffer[]> {
+    this.logger.debug(`DefaultOfferRepository: Searching offers by ids (count: ${ids.length})`);
+    if (ids.length === 0) {
+      return [];
+    }
+    return OfferModel.find({ id: { $in: ids } })
+      .populate('user')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .exec();
   }
 
   public async deleteById(id: string): Promise<boolean> {
     this.logger.info(`DefaultOfferRepository: Deleting offer by public ID ${id}`);
     const result = await OfferModel.deleteOne({ id }).exec();
     return result.deletedCount > 0;
+  }
+
+  public async updateById(id: string, dto: UpdateOffer): Promise<DocumentOffer | null> {
+    this.logger.info(`DefaultOfferRepository: Updating offer by public ID ${id}`);
+    return OfferModel.findOneAndUpdate(
+      { id },
+      { $set: dto },
+      { returnDocument: 'after', runValidators: true },
+    ).populate('user').exec();
   }
 
   public async updateStats(

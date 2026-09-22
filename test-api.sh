@@ -1,12 +1,16 @@
 #!/bin/bash
 # ============================================================================
 # 🧪 Автоматическое тестирование REST API «Шесть городов»
-# Полностью соответствует specification.yml + тест загрузки аватара
+# Соответствует specification/specification.yml (актуальная версия)
 # ============================================================================
+
 BASE_URL="${API_URL:-http://localhost:3000}"
 TEST_EMAIL="auto-test-$(date +%s)@example.com"
-TEST_PASSWORD="securePassword123"
+# Пароль: 6..12 символов (ТЗ 3.1.1)
+TEST_PASSWORD="secure123"
+# Имя: 1..15 символов (ТЗ 3.1.1)
 TEST_NAME="Auto Tester"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -81,7 +85,7 @@ echo -e "   └─ User ID: ${YELLOW}$USER_ID${NC}"
 echo -e "${BLUE}📋 ТЕСТ 2: Попытка зарегистрироваться с тем же email${NC}"
 RESPONSE=$(do_request -X POST "$BASE_URL/users" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"Another User\",\"email\":\"$TEST_EMAIL\",\"password\":\"anotherPass123\"}")
+  -d "{\"name\":\"AnotherUser\",\"email\":\"$TEST_EMAIL\",\"password\":\"another123\"}")
 check_status "$RESPONSE" "409" "POST /users — дубликат email"
 
 echo -e "${BLUE}📋 ТЕСТ 3: Ошибка валидации данных${NC}"
@@ -107,8 +111,16 @@ check_status "$RESPONSE" "200" "POST /auth/login — успешный вход"
 TOKEN=$(extract_value "$RESPONSE" "token")
 echo -e "   └─ Token: ${YELLOW}${TOKEN:0:40}...${NC}"
 
-# ✅ ИСПРАВЛЕННЫЙ ТЕСТ: Загрузка аватара (убран $USER_ID из URL)
-echo -e "${BLUE}📋 ТЕСТ 6.1: Загрузка аватара пользователя${NC}"
+echo -e "${BLUE}📋 ТЕСТ 6.1: Проверка состояния пользователя (авторизован)${NC}"
+RESPONSE=$(do_request -X GET "$BASE_URL/auth/check" \
+  -H "Authorization: Bearer $TOKEN")
+check_status "$RESPONSE" "200" "GET /auth/check — авторизован"
+
+echo -e "${BLUE}📋 ТЕСТ 6.2: Проверка состояния пользователя (аноним)${NC}"
+RESPONSE=$(do_request -X GET "$BASE_URL/auth/check")
+check_status "$RESPONSE" "401" "GET /auth/check — без токена"
+
+echo -e "${BLUE}📋 ТЕСТ 6.3: Загрузка аватара пользователя${NC}"
 TEST_AVATAR=$(mktemp /tmp/avatar-XXXXXX.png)
 printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > "$TEST_AVATAR"
 
@@ -127,11 +139,14 @@ rm -f "$TEST_AVATAR"
 echo -e "${BLUE}📋 ТЕСТ 7: Вход с неверным паролем${NC}"
 RESPONSE=$(do_request -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"wrong_password\"}")
+  -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"wrong123\"}")
 check_status "$RESPONSE" "401" "POST /auth/login — неверный пароль"
 
 # ─── 3. ПРЕДЛОЖЕНИЯ ─────────────────────────────────────────────────────────
 echo -e "${BLUE}📋 ТЕСТ 8: Создание предложения (с авторизацией)${NC}"
+# Внимание: rating НЕ передаём (считается сервером),
+# images — ровно 6 (ТЗ 3.2.1),
+# offerGoods — из фиксированного enum (ТЗ 3.2.1).
 RESPONSE=$(do_request -X POST "$BASE_URL/offers" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
@@ -147,11 +162,17 @@ RESPONSE=$(do_request -X POST "$BASE_URL/offers" \
   "offerLatitude": 48.8566,
   "offerLongitude": 2.3522,
   "offerZoom": 16,
-  "rating": 4.5,
   "description": "A beautiful place to stay in the heart of the city.",
   "bedrooms": 2,
-  "offerGoods": ["Wi-Fi", "Kitchen"],
-  "images": ["http://example.com/img1.jpg"],
+  "offerGoods": ["Breakfast", "Air conditioning", "Washer"],
+  "images": [
+    "http://example.com/1.jpg",
+    "http://example.com/2.jpg",
+    "http://example.com/3.jpg",
+    "http://example.com/4.jpg",
+    "http://example.com/5.jpg",
+    "http://example.com/6.jpg"
+  ],
   "maxAdults": 4
 }')
 check_status "$RESPONSE" "201" "POST /offers — создание оффера"
@@ -161,8 +182,15 @@ echo -e "   └─ Offer ID: ${YELLOW}$OFFER_ID${NC}"
 echo -e "${BLUE}📋 ТЕСТ 9: Создание оффера БЕЗ токена${NC}"
 RESPONSE=$(do_request -X POST "$BASE_URL/offers" \
   -H "Content-Type: application/json" \
-  -d '{"title":"Test apartment title","type":"apartment","price":100,"previewImage":"http://x.com","cityName":"Paris","cityLatitude":0,"cityLongitude":0,"cityZoom":0,"offerLatitude":0,"offerLongitude":0,"offerZoom":0,"rating":1,"description":"Test description for failure test","bedrooms":1,"offerGoods":["Wi-Fi"],"images":["http://x.com"],"maxAdults":1}')
+  -d '{"title":"Test apartment title","type":"apartment","price":100,"previewImage":"http://x.com","cityName":"Paris","cityLatitude":0,"cityLongitude":0,"cityZoom":0,"offerLatitude":0,"offerLongitude":0,"offerZoom":0,"description":"Test description for failure test","bedrooms":1,"offerGoods":["Washer"],"images":["http://x.com/1.jpg","http://x.com/2.jpg","http://x.com/3.jpg","http://x.com/4.jpg","http://x.com/5.jpg","http://x.com/6.jpg"],"maxAdults":1}')
 check_status "$RESPONSE" "401" "POST /offers — без авторизации"
+
+echo -e "${BLUE}📋 ТЕСТ 9.1: Создание оффера с 5 фото (ожидаем 400)${NC}"
+RESPONSE=$(do_request -X POST "$BASE_URL/offers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"title":"Only five images here","type":"apartment","price":1000,"previewImage":"http://x.com","cityName":"Paris","cityLatitude":0,"cityLongitude":0,"cityZoom":0,"offerLatitude":0,"offerLongitude":0,"offerZoom":0,"description":"Should fail because images count is not 6.","bedrooms":1,"offerGoods":["Washer"],"images":["http://x.com/1.jpg","http://x.com/2.jpg","http://x.com/3.jpg","http://x.com/4.jpg","http://x.com/5.jpg"],"maxAdults":1}')
+check_status "$RESPONSE" "400" "POST /offers — ровно 6 фото обязательно"
 
 echo -e "${BLUE}📋 ТЕСТ 10: Получение списка офферов${NC}"
 RESPONSE=$(do_request -X GET "$BASE_URL/offers?limit=5")
@@ -179,6 +207,56 @@ check_status "$RESPONSE" "200" "GET /offers/:offerId — получение оф
 echo -e "${BLUE}📋 ТЕСТ 13: Офферы конкретного пользователя${NC}"
 RESPONSE=$(do_request -X GET "$BASE_URL/users/$USER_ID/offers?limit=10")
 check_status "$RESPONSE" "200" "GET /users/:userId/offers — офферы пользователя"
+
+# ─── 3.1. РЕДАКТИРОВАНИЕ ОФФЕРА (PATCH) ──────────────────────────────────────
+echo -e "${BLUE}📋 ТЕСТ 13.1: Редактирование своего оффера${NC}"
+RESPONSE=$(do_request -X PATCH "$BASE_URL/offers/$OFFER_ID" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"price": 3000}')
+check_status "$RESPONSE" "200" "PATCH /offers/:offerId — успешное редактирование"
+
+echo -e "${BLUE}📋 ТЕСТ 13.2: Редактирование без токена${NC}"
+RESPONSE=$(do_request -X PATCH "$BASE_URL/offers/$OFFER_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"price": 3000}')
+check_status "$RESPONSE" "401" "PATCH /offers/:offerId — без авторизации"
+
+echo -e "${BLUE}📋 ТЕСТ 13.3: Редактирование с невалидным телом${NC}"
+RESPONSE=$(do_request -X PATCH "$BASE_URL/offers/$OFFER_ID" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"price": 50}')
+check_status "$RESPONSE" "400" "PATCH /offers/:offerId — невалидные данные"
+
+# ─── 3.2. ИЗБРАННОЕ ─────────────────────────────────────────────────────────
+echo -e "${BLUE}📋 ТЕСТ 13.4: Добавление оффера в избранное${NC}"
+RESPONSE=$(do_request -X POST "$BASE_URL/offers/$OFFER_ID/favorite" \
+  -H "Authorization: Bearer $TOKEN")
+check_status "$RESPONSE" "200" "POST /offers/:offerId/favorite"
+
+echo -e "${BLUE}📋 ТЕСТ 13.5: Список избранного${NC}"
+RESPONSE=$(do_request -X GET "$BASE_URL/offers/favorites" \
+  -H "Authorization: Bearer $TOKEN")
+check_status "$RESPONSE" "200" "GET /offers/favorites — список избранного"
+
+echo -e "${BLUE}📋 ТЕСТ 13.6: Список избранного без токена${NC}"
+RESPONSE=$(do_request -X GET "$BASE_URL/offers/favorites")
+check_status "$RESPONSE" "401" "GET /offers/favorites — без авторизации"
+
+echo -e "${BLUE}📋 ТЕСТ 13.7: Удаление оффера из избранного${NC}"
+RESPONSE=$(do_request -X DELETE "$BASE_URL/offers/$OFFER_ID/favorite" \
+  -H "Authorization: Bearer $TOKEN")
+check_status "$RESPONSE" "204" "DELETE /offers/:offerId/favorite"
+
+# ─── 3.3. ПРЕМИУМ-ПРЕДЛОЖЕНИЯ ───────────────────────────────────────────────
+echo -e "${BLUE}📋 ТЕСТ 13.8: Премиум-предложения города${NC}"
+RESPONSE=$(do_request -X GET "$BASE_URL/offers/premium/Paris")
+check_status "$RESPONSE" "200" "GET /offers/premium/:city"
+
+echo -e "${BLUE}📋 ТЕСТ 13.9: Премиум-предложения — неизвестный город${NC}"
+RESPONSE=$(do_request -X GET "$BASE_URL/offers/premium/Atlantis")
+check_status "$RESPONSE" "400" "GET /offers/premium/:city — неизвестный город"
 
 # ─── 4. КОММЕНТАРИИ ─────────────────────────────────────────────────────────
 echo -e "${BLUE}📋 ТЕСТ 14: Создание комментария к офферу${NC}"
@@ -237,9 +315,9 @@ echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║                    📊 ИТОГОВЫЙ ОТЧЁТ                        ║${NC}"
 echo -e "${CYAN}╠══════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${CYAN}║${NC}  Всего тестов:  ${YELLOW}$TOTAL${NC}                                       ${CYAN}║${NC}"
-echo -e "${CYAN}║${NC}  Пройдено:      ${GREEN}$PASSED${NC}                                       ${CYAN}║${NC}"
-echo -e "${CYAN}║${NC}  Провалено:     ${RED}$FAILED${NC}                                       ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  -Всего тестов:  ${YELLOW}$TOTAL${NC}                                       ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  -Пройдено:      ${GREEN}$PASSED${NC}                                       ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  -Провалено:     ${RED}$FAILED${NC}                                       ${CYAN}║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 if [ $FAILED -eq 0 ]; then
