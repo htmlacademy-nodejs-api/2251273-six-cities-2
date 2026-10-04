@@ -37,6 +37,7 @@ export class DefaultOfferService implements OfferService {
     return this.offerRepository.create({
       ...dto,
       isPremium: dto.isPremium ?? false,
+      rating: dto.rating ?? 0,
       user: user._id,
     });
   }
